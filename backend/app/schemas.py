@@ -3,12 +3,15 @@ from typing import Optional, List
 from pydantic import BaseModel, EmailStr, ConfigDict
 from .models import RoleEnum
 
+
+# ---------- Auth / Users ----------
 class RegisterRequest(BaseModel):
     name: str
     email: EmailStr
     password: str
     role: RoleEnum = RoleEnum.sales_executive
-# ---------- Auth / Users ----------
+
+
 class UserCreate(BaseModel):
     full_name: str
     email: EmailStr
@@ -34,6 +37,17 @@ class Token(BaseModel):
 class LoginRequest(BaseModel):
     email: EmailStr
     password: str
+
+
+# --- Password Reset OTP Schemas ---
+class SendOTPRequest(BaseModel):
+    email: EmailStr
+
+
+class ResetPasswordOTPRequest(BaseModel):
+    email: EmailStr
+    otp: str
+    new_password: str
 
 
 # ---------- Customers ----------
@@ -65,7 +79,7 @@ class ProductOut(ProductCreate):
 
 
 class StockUpdate(BaseModel):
-    quantity_delta: int  # positive to add stock, negative to deduct
+    quantity_delta: int
 
 
 # ---------- Sales ----------

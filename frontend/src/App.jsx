@@ -1,6 +1,7 @@
-import React from 'react'
-import { Routes, Route, Navigate } from 'react-router-dom'
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { useAuth } from './context/AuthContext.jsx'
+import ThemeToggle from './components/ThemeToggle.jsx'
+import LandingPage from './pages/LandingPage';
 import Layout from './components/Layout.jsx'
 import Login from './pages/Login.jsx'
 import Register from './pages/Register.jsx'
@@ -14,6 +15,8 @@ import Segmentation from './pages/Segmentation.jsx'
 import Churn from './pages/Churn.jsx'
 import Recommendations from './pages/Recommendations.jsx'
 import Anomalies from './pages/Anomalies.jsx'
+import Settings from './pages/Settings.jsx'
+import ForgotPassword from "./pages/ForgotPassword.jsx"
 
 function ProtectedRoute({ children, allowedRoles }) {
   const { user } = useAuth()
@@ -26,55 +29,53 @@ function ProtectedRoute({ children, allowedRoles }) {
 
 export default function App() {
   const { user } = useAuth()
+  const location = useLocation()
+
+  // Routes where Layout header is NOT present
+  const isPublicAuthPage = ['/login', '/register', '/forgot-password'].includes(location.pathname)
 
   return (
-    <Routes>
-      <Route path="/login" element={user ? <Navigate to="/dashboard" replace /> : <Login />} />
-      <Route path="/register" element={user ? <Navigate to="/dashboard" replace /> : <Register />} />
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 transition-colors duration-300">
+      {/* Floating Theme Toggle on Login / Register / Forgot Password */}
+      {isPublicAuthPage && (
+        <div className="fixed top-5 right-6 z-50">
+          <ThemeToggle />
+        </div>
+      )}
 
-      <Route
-        path="/"
-        element={
-          <ProtectedRoute>
-            <Layout />
-          </ProtectedRoute>
-        }
-      >
-        <Route index element={<Navigate to="/dashboard" replace />} />
-        <Route path="dashboard" element={<Dashboard />} />
-        <Route path="sales" element={<Sales />} />
-        <Route path="inventory" element={<Inventory />} />
-        <Route path="invoices" element={<Invoices />} />
-        <Route path="customers" element={<Customers />} />
-        <Route
-          path="forecasting"
-          element={
-            <ProtectedRoute allowedRoles={['business_owner', 'store_manager', 'admin']}>
-              <Forecasting />
-            </ProtectedRoute>
-          }
-        />
-        <Route path="segmentation" element={<Segmentation />} />
-        <Route
-          path="churn"
-          element={
-            <ProtectedRoute allowedRoles={['business_owner', 'store_manager', 'admin']}>
-              <Churn />
-            </ProtectedRoute>
-          }
-        />
-        <Route path="recommendations" element={<Recommendations />} />
-        <Route
-          path="anomalies"
-          element={
-            <ProtectedRoute allowedRoles={['business_owner', 'store_manager', 'admin']}>
-              <Anomalies />
-            </ProtectedRoute>
-          }
-        />
-      </Route>
+      <Routes>
+        {/* Public Landing Page */}
+        <Route path="/" element={<LandingPage />} />
 
-      <Route path="*" element={<Navigate to="/dashboard" replace />} />
-    </Routes>
+        {/* Public Auth Routes */}
+        <Route path="/login" element={user ? <Navigate to="/dashboard" replace /> : <Login />} />
+        <Route path="/register" element={user ? <Navigate to="/dashboard" replace /> : <Register />} />
+        <Route path="/forgot-password" element={user ? <Navigate to="/dashboard" replace /> : <ForgotPassword />} />
+
+        {/* Protected Dashboard App Routes (All share Layout & Header ThemeToggle) */}
+        <Route
+          element={
+            <ProtectedRoute>
+              <Layout />
+            </ProtectedRoute>
+          }
+        >
+          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/sales" element={<Sales />} />
+          <Route path="/inventory" element={<Inventory />} />
+          <Route path="/invoices" element={<Invoices />} />
+          <Route path="/customers" element={<Customers />} />
+          <Route path="/forecasting" element={<Forecasting />} />
+          <Route path="/segmentation" element={<Segmentation />} />
+          <Route path="/churn" element={<Churn />} />
+          <Route path="/recommendations" element={<Recommendations />} />
+          <Route path="/anomalies" element={<Anomalies />} />
+          <Route path="/settings" element={<Settings />} />
+        </Route>
+
+        {/* Catch-all Wildcard Route */}
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </div>
   )
 }
