@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from .database import Base, engine, SessionLocal
 from . import models
 from .seed_data import seed_if_empty
-from .routers import auth, customers, inventory, sales, invoices, analytics
+from .routers import auth, customers, inventory, sales, invoices, analytics,ai
 
 Base.metadata.create_all(bind=engine)
 
@@ -29,7 +29,7 @@ app.include_router(inventory.router)
 app.include_router(sales.router)
 app.include_router(invoices.router)
 app.include_router(analytics.router)
-
+app.include_router(ai.router)
 
 
 @app.on_event("startup")
