@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import api from '../services/api'
 import { Loading, PageHeader, Badge, EmptyState, ErrorBanner } from '../components/ui.jsx'
 import { Upload, Plus } from 'lucide-react'
@@ -14,12 +14,14 @@ export default function Sales() {
   const [form, setForm] = useState({ product_id: '', customer_id: '', quantity: 1, unit_price: '' })
 
   const load = useCallback(() => {
-    setLoading(true)
     Promise.all([api.get('/sales/'), api.get('/inventory/products'), api.get('/customers/')])
       .then(([s, p, c]) => {
         setSales(s.data)
         setProducts(p.data)
         setCustomers(c.data)
+      })
+      .catch((err) => {
+        setError(err.response?.data?.detail || err.message || 'Failed to load sales data.')
       })
       .finally(() => setLoading(false))
   }, [])

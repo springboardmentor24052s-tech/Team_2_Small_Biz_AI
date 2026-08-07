@@ -1,13 +1,30 @@
-import React, { createContext, useContext, useState, useCallback } from "react";
+import { createContext, useContext, useState, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import api from "../services/api";
 
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(() => {
+  const navigate = useNavigate();
+
+  const [user, setUserState] = useState(() => {
     const raw = localStorage.getItem("marketmind_user");
     return raw ? JSON.parse(raw) : null;
   });
+
+  // Wrap setUser so any update (e.g. from Settings after a profile edit)
+  // also persists to localStorage, keeping state and storage in sync.
+  const setUser = useCallback((updater) => {
+    setUserState((prev) => {
+      const next = typeof updater === "function" ? updater(prev) : updater;
+      if (next) {
+        localStorage.setItem("marketmind_user", JSON.stringify(next));
+      } else {
+        localStorage.removeItem("marketmind_user");
+      }
+      return next;
+    });
+  }, []);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -37,7 +54,7 @@ export function AuthProvider({ children }) {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [setUser]);
 
   const register = useCallback(async (payload) => {
     setLoading(true);
@@ -58,7 +75,8 @@ export function AuthProvider({ children }) {
     localStorage.removeItem("marketmind_token");
     localStorage.removeItem("marketmind_user");
     setUser(null);
-  }, []);
+    navigate("/"); // Redirects directly to landing page
+  }, [setUser, navigate]);
 
   const hasRole = useCallback(
     (...roles) => !!user && roles.includes(user.role),
@@ -69,6 +87,7 @@ export function AuthProvider({ children }) {
     <AuthContext.Provider
       value={{
         user,
+        setUser,
         login,
         register,
         logout,
@@ -82,6 +101,7 @@ export function AuthProvider({ children }) {
   );
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useAuth() {
   return useContext(AuthContext);
 }
