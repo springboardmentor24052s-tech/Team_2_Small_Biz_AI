@@ -1,4 +1,9 @@
-import { createContext, useContext, useState, useCallback } from "react";
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useCallback,
+} from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../services/api";
 
@@ -12,16 +17,21 @@ export function AuthProvider({ children }) {
     return raw ? JSON.parse(raw) : null;
   });
 
-  // Wrap setUser so any update (e.g. from Settings after a profile edit)
-  // also persists to localStorage, keeping state and storage in sync.
+  // Keep React state and localStorage synchronized
   const setUser = useCallback((updater) => {
     setUserState((prev) => {
-      const next = typeof updater === "function" ? updater(prev) : updater;
+      const next =
+        typeof updater === "function" ? updater(prev) : updater;
+
       if (next) {
-        localStorage.setItem("marketmind_user", JSON.stringify(next));
+        localStorage.setItem(
+          "marketmind_user",
+          JSON.stringify(next)
+        );
       } else {
         localStorage.removeItem("marketmind_user");
       }
+
       return next;
     });
   }, []);
@@ -29,32 +39,36 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  const login = useCallback(async (email, password) => {
-    setLoading(true);
-    setError(null);
+  const login = useCallback(
+    async (email, password) => {
+      setLoading(true);
+      setError(null);
 
-    try {
-      const res = await api.post("/auth/login", {
-        email,
-        password,
-      });
+      try {
+        const res = await api.post("/auth/login", {
+          email,
+          password,
+        });
 
-      localStorage.setItem("marketmind_token", res.data.access_token);
-      localStorage.setItem(
-        "marketmind_user",
-        JSON.stringify(res.data.user)
-      );
+        localStorage.setItem(
+          "marketmind_token",
+          res.data.access_token
+        );
 
-      setUser(res.data.user);
+        setUser(res.data.user);
 
-      return true;
-    } catch (err) {
-      setError(err.response?.data?.detail || "Login failed.");
-      return false;
-    } finally {
-      setLoading(false);
-    }
-  }, [setUser]);
+        return true;
+      } catch (err) {
+        setError(
+          err.response?.data?.detail || "Login failed."
+        );
+        return false;
+      } finally {
+        setLoading(false);
+      }
+    },
+    [setUser]
+  );
 
   const register = useCallback(async (payload) => {
     setLoading(true);
@@ -64,7 +78,9 @@ export function AuthProvider({ children }) {
       await api.post("/auth/register", payload);
       return true;
     } catch (err) {
-      setError(err.response?.data?.detail || "Registration failed.");
+      setError(
+        err.response?.data?.detail || "Registration failed."
+      );
       return false;
     } finally {
       setLoading(false);
@@ -74,12 +90,17 @@ export function AuthProvider({ children }) {
   const logout = useCallback(() => {
     localStorage.removeItem("marketmind_token");
     localStorage.removeItem("marketmind_user");
+
     setUser(null);
-    navigate("/"); // Redirects directly to landing page
+
+    navigate("/");
   }, [setUser, navigate]);
 
   const hasRole = useCallback(
-    (...roles) => !!user && roles.includes(user.role),
+    (...roles) =>
+      !!user &&
+      !!user.role &&
+      roles.includes(user.role.role_name),
     [user]
   );
 
@@ -101,7 +122,6 @@ export function AuthProvider({ children }) {
   );
 }
 
-// eslint-disable-next-line react-refresh/only-export-components
 export function useAuth() {
   return useContext(AuthContext);
 }

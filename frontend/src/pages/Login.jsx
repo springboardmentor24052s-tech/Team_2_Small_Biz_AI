@@ -1,6 +1,14 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { Mail, Lock, Sparkles, CheckCircle2, ArrowRight, Eye, EyeOff } from "lucide-react";
+import {
+  Mail,
+  Lock,
+  Sparkles,
+  CheckCircle2,
+  ArrowRight,
+  Eye,
+  EyeOff,
+} from "lucide-react";
 import { useAuth } from "../context/AuthContext.jsx";
 import { ErrorBanner } from "../components/ui.jsx";
 
@@ -15,7 +23,9 @@ export default function Login() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const ok = await login(email, password, rememberMe);
+
+    const ok = await login(email, password);
+
     if (ok) {
       navigate("/dashboard");
     }
@@ -28,8 +38,8 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#2e2b8f] dark:bg-slate-950 p-4 md:p-6 font-sans transition-colors duration-300">
-      <div className="w-full max-w-5xl grid md:grid-cols-12 bg-white dark:bg-slate-900 rounded-3xl shadow-2xl overflow-hidden border border-white/10 dark:border-slate-800 transition-colors duration-300">
+    <div className="min-h-screen bg-slate-100 dark:bg-slate-950 flex items-center justify-center p-4 transition-colors duration-300">
+      <div className="w-full max-w-5xl grid grid-cols-1 md:grid-cols-12 bg-white dark:bg-slate-900 rounded-2xl shadow-xl overflow-hidden min-h-[600px]">
         
         {/* Branding Panel */}
         <div className="hidden md:flex md:col-span-5 flex-col justify-between bg-[#2e2b8f] dark:bg-slate-900 text-white p-10 relative overflow-hidden dark:border-r dark:border-slate-800">
@@ -38,11 +48,14 @@ export default function Login() {
               <Sparkles size={14} className="text-amber-400" />
               <span>Welcome Back</span>
             </div>
+
             <h1 className="text-4xl font-extrabold tracking-tight text-white mb-3 leading-tight">
               MarketMind AI
             </h1>
+
             <p className="text-slate-300 dark:text-slate-400 text-sm leading-relaxed">
-              AI-powered sales intelligence platform designed for retail stores, supermarkets, and small businesses.
+              AI-powered sales intelligence platform designed for retail
+              stores, supermarkets, and small businesses.
             </p>
           </div>
 
@@ -51,10 +64,12 @@ export default function Login() {
               <CheckCircle2 size={16} className="text-emerald-400" />
               <span>Smart Sales Analytics</span>
             </div>
+
             <div className="flex items-center gap-2 text-xs text-slate-300 dark:text-slate-400">
               <CheckCircle2 size={16} className="text-emerald-400" />
               <span>Inventory Management</span>
             </div>
+
             <div className="flex items-center gap-2 text-xs text-slate-300 dark:text-slate-400">
               <CheckCircle2 size={16} className="text-emerald-400" />
               <span>Customer Insights & Reports</span>
@@ -64,10 +79,12 @@ export default function Login() {
 
         {/* Form Container */}
         <div className="md:col-span-7 p-8 md:p-12 flex flex-col justify-center bg-white dark:bg-slate-900 transition-colors duration-300">
+          
           <div className="mb-6">
             <h2 className="text-3xl font-extrabold text-slate-900 dark:text-slate-100 tracking-tight">
               Sign In
             </h2>
+
             <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
               Enter your credentials to access your account.
             </p>
@@ -82,8 +99,13 @@ export default function Login() {
               <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">
                 Email Address
               </label>
+
               <div className="relative">
-                <Mail size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 pointer-events-none" />
+                <Mail
+                  size={18}
+                  className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 pointer-events-none"
+                />
+
                 <input
                   type="email"
                   required
@@ -100,8 +122,13 @@ export default function Login() {
               <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">
                 Password
               </label>
+
               <div className="relative">
-                <Lock size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 pointer-events-none" />
+                <Lock
+                  size={18}
+                  className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 pointer-events-none"
+                />
+
                 <input
                   type={showPassword ? "text" : "password"}
                   required
@@ -110,19 +137,24 @@ export default function Login() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                 />
+
                 <button
                   type="button"
                   onClick={togglePasswordVisibility}
                   className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 focus:outline-none p-1 z-10"
                 >
-                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  {showPassword ? (
+                    <EyeOff size={18} />
+                  ) : (
+                    <Eye size={18} />
+                  )}
                 </button>
               </div>
             </div>
 
             {/* Remember Me & Forgot Password */}
-            <div className="flex items-center justify-between pt-1">
-              <label className="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-400 cursor-pointer select-none font-medium">
+            <div className="flex items-center justify-between">
+              <label className="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-400 cursor-pointer">
                 <input
                   type="checkbox"
                   checked={rememberMe}
@@ -147,6 +179,7 @@ export default function Login() {
               className="w-full mt-2 py-3 px-4 bg-[#2e2b8f] hover:bg-[#252275] active:bg-[#1d1a5c] dark:bg-indigo-600 dark:hover:bg-indigo-500 dark:active:bg-indigo-700 text-white font-semibold rounded-xl text-sm shadow-md shadow-[#2e2b8f]/20 dark:shadow-none transition-all flex items-center justify-center gap-2 disabled:opacity-50"
             >
               <span>{loading ? "Signing in..." : "Sign In"}</span>
+
               {!loading && <ArrowRight size={16} />}
             </button>
 
@@ -154,11 +187,13 @@ export default function Login() {
 
           <p className="text-center text-xs text-slate-500 dark:text-slate-400 mt-6">
             New business?{" "}
-            <Link to="/register" className="text-[#2e2b8f] dark:text-indigo-400 font-bold hover:underline">
+            <Link
+              to="/register"
+              className="text-[#2e2b8f] dark:text-indigo-400 font-bold hover:underline"
+            >
               Create an account
             </Link>
           </p>
-
         </div>
       </div>
     </div>
