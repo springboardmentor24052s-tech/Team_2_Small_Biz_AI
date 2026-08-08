@@ -1,21 +1,28 @@
 import os
+
 from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from .database import Base, engine, SessionLocal
+from .database import engine, SessionLocal
 from . import models
 from .seed_data import seed_if_empty
-from .routers import auth, customers, inventory, sales, invoices, analytics,ai
+from .routers import (
+    auth,
+    customers,
+    inventory,
+    sales,
+    invoices,
+    analytics,
+    ai,
+    categories,
+    suppliers,
+    datasets,
+    users,
+)
+
 # Load environment variables from .env file before anything else runs
 load_dotenv()
-
-from .database import Base, engine, SessionLocal
-from .seed_data import seed_if_empty
-from .routers import auth, customers, inventory, sales, invoices, analytics, ai
-
-# Initialize database tables
-Base.metadata.create_all(bind=engine)
 
 app = FastAPI(
     title="MarketMind AI",
@@ -32,8 +39,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Note: Routers already include their /api/ path prefix internally.
-# Including them directly prevents path doubling (e.g., /api/api/customers).
+# Include routers
 app.include_router(auth.router)
 app.include_router(customers.router)
 app.include_router(inventory.router)
@@ -41,6 +47,12 @@ app.include_router(sales.router)
 app.include_router(invoices.router)
 app.include_router(analytics.router)
 app.include_router(ai.router)
+
+# New routers from origin/pre-dev
+app.include_router(categories.router)
+app.include_router(suppliers.router)
+app.include_router(datasets.router)
+app.include_router(users.router)
 
 
 @app.on_event("startup")
