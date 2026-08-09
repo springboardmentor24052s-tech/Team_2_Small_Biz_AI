@@ -72,7 +72,7 @@ export default function Register() {
     try {
       await api.post("/auth/register", {
         company_name: formData.company_name,
-        name: formData.name,
+        full_name: formData.full_name,
         email: formData.email,
         password: formData.password,
         role: formData.role,
@@ -197,9 +197,9 @@ export default function Register() {
 
                 <input
                   type="text"
-                  name="name"
+                  name="full_name"
                   required
-                  value={formData.name}
+                  value={formData.full_name}
                   onChange={handleChange}
                   className="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-slate-100 focus:bg-white dark:focus:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-[#2e2b8f]/20 dark:focus:ring-indigo-500/30 focus:border-[#2e2b8f] dark:focus:border-indigo-500 transition-all"
                   placeholder="John Doe"

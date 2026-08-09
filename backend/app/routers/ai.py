@@ -124,7 +124,7 @@ def get_customer_segmentation(
 
         customer_list.append({
             "customer_id": c.id,
-            "customer_name": c.name,
+            "customer_name": c.full_name,
             "segment": segment,
             "frequency": orders,
             "monetary": round(spent, 2)
@@ -193,7 +193,7 @@ def get_churn_predictions(
         rows.append(
             {
                 "customer_id": c.id,
-                "customer_name": c.name,
+                "customer_name": c.full_name,
                 "risk_category": risk,
                 "churn_probability": prob,
                 "recommendation": rec,
@@ -223,7 +223,7 @@ def get_product_recommendations(
         rows.append(
             {
                 "customer_id": c.id,
-                "customer_name": c.name,
+                "customer_name": c.full_name,
                 "recommended_products": [p1, p2],
                 "reason": "Based on frequent co-purchases by similar customers in their demographic.",
             }
@@ -234,27 +234,57 @@ def get_product_recommendations(
 
 @router.get("/anomalies")
 def get_anomaly_alerts(
-    db: Session = Depends(get_db), current_user=Depends(get_current_user)
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user)
 ) -> Dict[str, Any]:
-    outliers = (
+
+    # Find sales with unusually high total amounts
+    high_value_sales = (
         db.query(models.Sale)
-        .filter((models.Sale.quantity >= 50) | (models.Sale.total_amount >= 10000))
+        .filter(models.Sale.total_amount >= 10000)
+        .all()
+    )
+
+    # Find sale items with unusually large quantities
+    bulk_sale_items = (
+        db.query(models.SaleItem)
+        .filter(models.SaleItem.quantity >= 50)
         .all()
     )
 
     alerts = []
-    for s in outliers:
+
+    # High-value sale anomalies
+    for s in high_value_sales:
         alerts.append(
             {
                 "id": s.id,
                 "severity": "high",
                 "category": "sales",
-                "description": f"Unusual bulk order detected: {s.quantity} units totaling ₹{s.total_amount:,.2f}.",
+                "description": (
+                    f"Unusually high-value sale detected: "
+                    f"₹{s.total_amount:,.2f}."
+                ),
                 "created_at": (
                     s.sale_date.isoformat()
                     if s.sale_date
                     else dt.datetime.utcnow().isoformat()
                 ),
+            }
+        )
+
+    # Bulk quantity anomalies
+    for item in bulk_sale_items:
+        alerts.append(
+            {
+                "id": item.id,
+                "severity": "high",
+                "category": "inventory",
+                "description": (
+                    f"Unusual bulk order detected: "
+                    f"{item.quantity} units of product ID {item.product_id}."
+                ),
+                "created_at": dt.datetime.utcnow().isoformat(),
             }
         )
 

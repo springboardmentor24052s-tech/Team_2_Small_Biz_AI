@@ -36,7 +36,7 @@ const PERMISSIONS_MAP = {
 }
 
 export default function Settings() {
-  const { user, setUser } = useAuth()
+  const { user, updateUser } = useAuth()
 
   // Profile Form State
   const [fullName, setFullName] = useState(user?.full_name || '')
@@ -69,8 +69,8 @@ export default function Settings() {
 
     try {
       const res = await api.put('/auth/profile', { full_name: fullName, email })
-      if (setUser && res.data) {
-        setUser((prev) => ({ ...prev, ...res.data }))
+      if (res.data) {
+        updateUser(res.data)
       }
       setProfileMsg({ type: 'success', text: 'Profile updated successfully!' })
     } catch (err) {
@@ -119,7 +119,7 @@ export default function Settings() {
     }
   }
 
-  const userPermissions = PERMISSIONS_MAP[user?.role] || PERMISSIONS_MAP['business_owner']
+  const userPermissions = PERMISSIONS_MAP[user?.role?.role_name] || PERMISSIONS_MAP['business_owner']
 
   return (
     <div className="space-y-6">
@@ -143,7 +143,7 @@ export default function Settings() {
           </div>
         </div>
         <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-brand-50 text-brand-700 border border-brand-200">
-          Role: {ROLE_LABELS[user?.role] || user?.role || 'Business Owner'}
+          Role: {ROLE_LABELS[user?.role?.role_name] || user?.role?.role_name || 'Business Owner'}
         </span>
       </div>
 
@@ -314,7 +314,7 @@ export default function Settings() {
             </div>
             <p className="text-xs text-slate-500">
               Your assigned privileges as an active{' '}
-              <span className="font-semibold">{ROLE_LABELS[user?.role] || 'User'}</span>:
+              <span className="font-semibold">{ROLE_LABELS[user?.role?.role_name] || 'User'}</span>:
             </p>
             <ul className="space-y-2 pt-1">
               {userPermissions.map((perm, index) => (
