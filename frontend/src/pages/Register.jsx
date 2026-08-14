@@ -8,11 +8,11 @@ export default function Register() {
   const navigate = useNavigate();
 
   const [formData, setFormData] = useState({
+    companyName: "",
     name: "",
     email: "",
     password: "",
     confirmPassword: "",
-    role: "sales_executive",
   });
 
   const [showPassword, setShowPassword] = useState(false);
@@ -57,10 +57,10 @@ export default function Register() {
 
     try {
       await api.post("/auth/register", {
-        name: formData.name,
+        company_name: formData.companyName,
+        full_name: formData.name,
         email: formData.email,
         password: formData.password,
-        role: formData.role,
       });
 
       setSuccessMsg("Account registered successfully! Redirecting to login...");
@@ -134,6 +134,24 @@ export default function Register() {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">
+                Company Name
+              </label>
+              <div className="relative">
+                <Sparkles size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 pointer-events-none" />
+                <input
+                  type="text"
+                  name="companyName"
+                  required
+                  value={formData.companyName}
+                  onChange={handleChange}
+                  className="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-slate-100 focus:bg-white dark:focus:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-[#2e2b8f]/20 dark:focus:ring-indigo-500/30 focus:border-[#2e2b8f] dark:focus:border-indigo-500 transition-all"
+                  placeholder="Acme Corp"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">
                 Full Name
               </label>
               <div className="relative">
@@ -168,22 +186,7 @@ export default function Register() {
               </div>
             </div>
 
-            <div>
-              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">
-                Account Role
-              </label>
-              <select
-                name="role"
-                value={formData.role}
-                onChange={handleChange}
-                className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-slate-100 focus:bg-white dark:focus:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-[#2e2b8f]/20 dark:focus:ring-indigo-500/30 focus:border-[#2e2b8f] dark:focus:border-indigo-500 transition-all"
-              >
-                <option value="business_owner">Business Owner</option>
-                <option value="store_manager">Store Manager</option>
-                <option value="sales_executive">Sales Executive</option>
-                <option value="admin">System Administrator</option>
-              </select>
-            </div>
+
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>

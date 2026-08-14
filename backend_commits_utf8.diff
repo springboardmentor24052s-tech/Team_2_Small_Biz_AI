@@ -1,0 +1,3419 @@
+﻿commit 1a7906fb8e34ee4d12ed4700afd4cce9ef1fef1c
+Author: Pramodh Pillitla <pramodhpillitla@gmail.com>
+Date:   Fri Aug 7 17:46:12 2026 +0530
+
+    feat: implement multi-tenant architecture and RBAC team management
+
+diff --git a/backend/alembic.ini b/backend/alembic.ini
+new file mode 100644
+index 0000000..72cc699
+--- /dev/null
++++ b/backend/alembic.ini
+@@ -0,0 +1,116 @@
++# A generic, single database configuration.
++
++[alembic]
++# path to migration scripts
++# Use forward slashes (/) also on windows to provide an os agnostic path
++script_location = alembic
++
++# template used to generate migration file names; The default value is %%(rev)s_%%(slug)s
++# Uncomment the line below if you want the files to be prepended with date and time
++# see https://alembic.sqlalchemy.org/en/latest/tutorial.html#editing-the-ini-file
++# for all available tokens
++# file_template = %%(year)d_%%(month).2d_%%(day).2d_%%(hour).2d%%(minute).2d-%%(rev)s_%%(slug)s
++
++# sys.path path, will be prepended to sys.path if present.
++# defaults to the current working directory.
++prepend_sys_path = .
++
++# timezone to use when rendering the date within the migration file
++# as well as the filename.
++# If specified, requires the python>=3.9 or backports.zoneinfo library.
++# Any required deps can installed by adding `alembic[tz]` to the pip requirements
++# string value is passed to ZoneInfo()
++# leave blank for localtime
++# timezone =
++
++# max length of characters to apply to the "slug" field
++# truncate_slug_length = 40
++
++# set to 'true' to run the environment during
++# the 'revision' command, regardless of autogenerate
++# revision_environment = false
++
++# set to 'true' to allow .pyc and .pyo files without
++# a source .py file to be detected as revisions in the
++# versions/ directory
++# sourceless = false
++
++# version location specification; This defaults
++# to alembic/versions.  When using multiple version
++# directories, initial revisions must be specified with --version-path.
++# The path separator used here should be the separator specified by "version_path_separator" below.
++# version_locations = %(here)s/bar:%(here)s/bat:alembic/versions
++
++# version path separator; As mentioned above, this is the character used to split
++# version_locations. The default within new alembic.ini files is "os", which uses os.pathsep.
++# If this key is omitted entirely, it falls back to the legacy behavior of splitting on spaces and/or commas.
++# Valid values for version_path_separator are:
++#
++# version_path_separator = :
++# version_path_separator = ;
++# version_path_separator = space
++version_path_separator = os  # Use os.pathsep. Default configuration used for new projects.
++
++# set to 'true' to search source files recursively
++# in each "version_locations" directory
++# new in Alembic version 1.10
++# recursive_version_locations = false
++
++# the output encoding used when revision files
++# are written from script.py.mako
++# output_encoding = utf-8
++
++sqlalchemy.url = driver://user:pass@localhost/dbname
++
++
++[post_write_hooks]
++# post_write_hooks defines scripts or Python functions that are run
++# on newly generated revision scripts.  See the documentation for further
++# detail and examples
++
++# format using "black" - use the console_scripts runner, against the "black" entrypoint
++# hooks = black
++# black.type = console_scripts
++# black.entrypoint = black
++# black.options = -l 79 REVISION_SCRIPT_FILENAME
++
++# lint with attempts to fix using "ruff" - use the exec runner, execute a binary
++# hooks = ruff
++# ruff.type = exec
++# ruff.executable = %(here)s/.venv/bin/ruff
++# ruff.options = --fix REVISION_SCRIPT_FILENAME
++
++# Logging configuration
++[loggers]
++keys = root,sqlalchemy,alembic
++
++[handlers]
++keys = console
++
++[formatters]
++keys = generic
++
++[logger_root]
++level = WARN
++handlers = console
++qualname =
++
++[logger_sqlalchemy]
++level = WARN
++handlers =
++qualname = sqlalchemy.engine
++
++[logger_alembic]
++level = INFO
++handlers =
++qualname = alembic
++
++[handler_console]
++class = StreamHandler
++args = (sys.stderr,)
++level = NOTSET
++formatter = generic
++
++[formatter_generic]
++format = %(levelname)-5.5s [%(name)s] %(message)s
++datefmt = %H:%M:%S
+diff --git a/backend/alembic/README b/backend/alembic/README
+new file mode 100644
+index 0000000..98e4f9c
+--- /dev/null
++++ b/backend/alembic/README
+@@ -0,0 +1 @@
++Generic single-database configuration.
+\ No newline at end of file
+diff --git a/backend/alembic/env.py b/backend/alembic/env.py
+new file mode 100644
+index 0000000..b8e6692
+--- /dev/null
++++ b/backend/alembic/env.py
+@@ -0,0 +1,88 @@
++from logging.config import fileConfig
++
++from sqlalchemy import engine_from_config
++from sqlalchemy import pool
++
++from alembic import context
++import os
++import sys
++from dotenv import load_dotenv
++
++# Add the backend directory to sys.path
++sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
++
++load_dotenv()
++
++# this is the Alembic Config object, which provides
++# access to the values within the .ini file in use.
++config = context.config
++
++# Interpret the config file for Python logging.
++# This line sets up loggers basically.
++if config.config_file_name is not None:
++    fileConfig(config.config_file_name)
++
++# add your model's MetaData object here
++# for 'autogenerate' support
++from app import models
++target_metadata = models.Base.metadata
++
++# Set sqlalchemy.url from environment variable
++config.set_main_option("sqlalchemy.url", os.getenv("DATABASE_URL"))
++
++# other values from the config, defined by the needs of env.py,
++# can be acquired:
++# my_important_option = config.get_main_option("my_important_option")
++# ... etc.
++
++
++def run_migrations_offline() -> None:
++    """Run migrations in 'offline' mode.
++
++    This configures the context with just a URL
++    and not an Engine, though an Engine is acceptable
++    here as well.  By skipping the Engine creation
++    we don't even need a DBAPI to be available.
++
++    Calls to context.execute() here emit the given string to the
++    script output.
++
++    """
++    url = config.get_main_option("sqlalchemy.url")
++    context.configure(
++        url=url,
++        target_metadata=target_metadata,
++        literal_binds=True,
++        dialect_opts={"paramstyle": "named"},
++    )
++
++    with context.begin_transaction():
++        context.run_migrations()
++
++
++def run_migrations_online() -> None:
++    """Run migrations in 'online' mode.
++
++    In this scenario we need to create an Engine
++    and associate a connection with the context.
++
++    """
++    connectable = engine_from_config(
++        config.get_section(config.config_ini_section, {}),
++        prefix="sqlalchemy.",
++        poolclass=pool.NullPool,
++    )
++
++    with connectable.connect() as connection:
++        context.configure(
++            connection=connection, target_metadata=target_metadata
++        )
++
++        with context.begin_transaction():
++            context.run_migrations()
++
++
++if context.is_offline_mode():
++    run_migrations_offline()
++else:
++    run_migrations_online()
+diff --git a/backend/alembic/script.py.mako b/backend/alembic/script.py.mako
+new file mode 100644
+index 0000000..fbc4b07
+--- /dev/null
++++ b/backend/alembic/script.py.mako
+@@ -0,0 +1,26 @@
++"""${message}
++
++Revision ID: ${up_revision}
++Revises: ${down_revision | comma,n}
++Create Date: ${create_date}
++
++"""
++from typing import Sequence, Union
++
++from alembic import op
++import sqlalchemy as sa
++${imports if imports else ""}
++
++# revision identifiers, used by Alembic.
++revision: str = ${repr(up_revision)}
++down_revision: Union[str, None] = ${repr(down_revision)}
++branch_labels: Union[str, Sequence[str], None] = ${repr(branch_labels)}
++depends_on: Union[str, Sequence[str], None] = ${repr(depends_on)}
++
++
++def upgrade() -> None:
++    ${upgrades if upgrades else "pass"}
++
++
++def downgrade() -> None:
++    ${downgrades if downgrades else "pass"}
+diff --git a/backend/alembic/versions/18006a30996f_add_multi_tenancy_business_id.py b/backend/alembic/versions/18006a30996f_add_multi_tenancy_business_id.py
+new file mode 100644
+index 0000000..152fc62
+--- /dev/null
++++ b/backend/alembic/versions/18006a30996f_add_multi_tenancy_business_id.py
+@@ -0,0 +1,73 @@
++"""Add multi-tenancy business_id
++
++Revision ID: 18006a30996f
++Revises: f52fd5d1ffbb
++Create Date: 2026-08-07 17:04:13.285023
++
++"""
++from typing import Sequence, Union
++
++from alembic import op
++import sqlalchemy as sa
++
++
++# revision identifiers, used by Alembic.
++revision: str = '18006a30996f'
++down_revision: Union[str, None] = 'f52fd5d1ffbb'
++branch_labels: Union[str, Sequence[str], None] = None
++depends_on: Union[str, Sequence[str], None] = None
++
++
++def upgrade() -> None:
++    # ### commands auto generated by Alembic - please adjust! ###
++    op.create_table('businesses',
++    sa.Column('id', sa.Integer(), nullable=False),
++    sa.Column('company_name', sa.String(), nullable=False),
++    sa.Column('created_at', sa.DateTime(), nullable=True),
++    sa.PrimaryKeyConstraint('id')
++    )
++    op.create_index(op.f('ix_businesses_id'), 'businesses', ['id'], unique=False)
++    op.add_column('alerts', sa.Column('business_id', sa.Integer(), nullable=False))
++    op.create_foreign_key(None, 'alerts', 'businesses', ['business_id'], ['id'])
++    op.add_column('categories', sa.Column('business_id', sa.Integer(), nullable=False))
++    op.create_foreign_key(None, 'categories', 'businesses', ['business_id'], ['id'])
++    op.add_column('customers', sa.Column('business_id', sa.Integer(), nullable=False))
++    op.create_foreign_key(None, 'customers', 'businesses', ['business_id'], ['id'])
++    op.add_column('forecasts', sa.Column('business_id', sa.Integer(), nullable=False))
++    op.create_foreign_key(None, 'forecasts', 'businesses', ['business_id'], ['id'])
++    op.add_column('products', sa.Column('business_id', sa.Integer(), nullable=False))
++    op.create_foreign_key(None, 'products', 'businesses', ['business_id'], ['id'])
++    op.add_column('sales', sa.Column('business_id', sa.Integer(), nullable=False))
++    op.create_foreign_key(None, 'sales', 'businesses', ['business_id'], ['id'])
++    op.add_column('suppliers', sa.Column('business_id', sa.Integer(), nullable=False))
++    op.create_foreign_key(None, 'suppliers', 'businesses', ['business_id'], ['id'])
++    op.add_column('uploaded_datasets', sa.Column('business_id', sa.Integer(), nullable=False))
++    op.create_foreign_key(None, 'uploaded_datasets', 'businesses', ['business_id'], ['id'])
++    op.add_column('users', sa.Column('business_id', sa.Integer(), nullable=False))
++    op.create_foreign_key(None, 'users', 'businesses', ['business_id'], ['id'])
++    # ### end Alembic commands ###
++
++
++def downgrade() -> None:
++    # ### commands auto generated by Alembic - please adjust! ###
++    op.drop_constraint(None, 'users', type_='foreignkey')
++    op.drop_column('users', 'business_id')
++    op.drop_constraint(None, 'uploaded_datasets', type_='foreignkey')
++    op.drop_column('uploaded_datasets', 'business_id')
++    op.drop_constraint(None, 'suppliers', type_='foreignkey')
++    op.drop_column('suppliers', 'business_id')
++    op.drop_constraint(None, 'sales', type_='foreignkey')
++    op.drop_column('sales', 'business_id')
++    op.drop_constraint(None, 'products', type_='foreignkey')
++    op.drop_column('products', 'business_id')
++    op.drop_constraint(None, 'forecasts', type_='foreignkey')
++    op.drop_column('forecasts', 'business_id')
++    op.drop_constraint(None, 'customers', type_='foreignkey')
++    op.drop_column('customers', 'business_id')
++    op.drop_constraint(None, 'categories', type_='foreignkey')
++    op.drop_column('categories', 'business_id')
++    op.drop_constraint(None, 'alerts', type_='foreignkey')
++    op.drop_column('alerts', 'business_id')
++    op.drop_index(op.f('ix_businesses_id'), table_name='businesses')
++    op.drop_table('businesses')
++    # ### end Alembic commands ###
+diff --git a/backend/alembic/versions/31e4d514e2b8_initial_18_table_schema.py b/backend/alembic/versions/31e4d514e2b8_initial_18_table_schema.py
+new file mode 100644
+index 0000000..f858f1a
+--- /dev/null
++++ b/backend/alembic/versions/31e4d514e2b8_initial_18_table_schema.py
+@@ -0,0 +1,300 @@
++"""Initial 18-table schema
++
++Revision ID: 31e4d514e2b8
++Revises: 
++Create Date: 2026-08-07 00:25:19.775367
++
++"""
++from typing import Sequence, Union
++
++from alembic import op
++import sqlalchemy as sa
++
++
++# revision identifiers, used by Alembic.
++revision: str = '31e4d514e2b8'
++down_revision: Union[str, None] = None
++branch_labels: Union[str, Sequence[str], None] = None
++depends_on: Union[str, Sequence[str], None] = None
++
++
++def upgrade() -> None:
++    # ### commands auto generated by Alembic - please adjust! ###
++    op.create_table('alerts',
++    sa.Column('id', sa.Integer(), nullable=False),
++    sa.Column('alert_type', sa.String(), nullable=False),
++    sa.Column('title', sa.String(), nullable=False),
++    sa.Column('description', sa.Text(), nullable=True),
++    sa.Column('priority', sa.String(), nullable=True),
++    sa.Column('is_read', sa.Boolean(), nullable=True),
++    sa.Column('created_at', sa.DateTime(), nullable=True),
++    sa.PrimaryKeyConstraint('id')
++    )
++    op.create_index(op.f('ix_alerts_id'), 'alerts', ['id'], unique=False)
++    op.create_table('anomalies',
++    sa.Column('id', sa.Integer(), nullable=False),
++    sa.Column('anomaly_type', sa.String(), nullable=False),
++    sa.Column('reference_id', sa.Integer(), nullable=True),
++    sa.Column('severity', sa.String(), nullable=True),
++    sa.Column('confidence', sa.Float(), nullable=True),
++    sa.Column('description', sa.Text(), nullable=True),
++    sa.Column('detected_at', sa.DateTime(), nullable=True),
++    sa.Column('resolved', sa.Boolean(), nullable=True),
++    sa.PrimaryKeyConstraint('id')
++    )
++    op.create_index(op.f('ix_anomalies_id'), 'anomalies', ['id'], unique=False)
++    op.create_table('categories',
++    sa.Column('id', sa.Integer(), nullable=False),
++    sa.Column('category_name', sa.String(), nullable=False),
++    sa.Column('description', sa.Text(), nullable=True),
++    sa.PrimaryKeyConstraint('id')
++    )
++    op.create_index(op.f('ix_categories_id'), 'categories', ['id'], unique=False)
++    op.create_table('customers',
++    sa.Column('id', sa.Integer(), nullable=False),
++    sa.Column('first_name', sa.String(), nullable=False),
++    sa.Column('last_name', sa.String(), nullable=False),
++    sa.Column('phone', sa.String(), nullable=True),
++    sa.Column('email', sa.String(), nullable=True),
++    sa.Column('gender', sa.String(), nullable=True),
++    sa.Column('dob', sa.Date(), nullable=True),
++    sa.Column('address', sa.Text(), nullable=True),
++    sa.Column('total_orders', sa.Integer(), nullable=True),
++    sa.Column('total_spent', sa.Float(), nullable=True),
++    sa.Column('last_purchase_date', sa.Date(), nullable=True),
++    sa.Column('created_at', sa.DateTime(), nullable=True),
++    sa.PrimaryKeyConstraint('id')
++    )
++    op.create_index(op.f('ix_customers_id'), 'customers', ['id'], unique=False)
++    op.create_table('roles',
++    sa.Column('id', sa.Integer(), nullable=False),
++    sa.Column('role_name', sa.String(), nullable=False),
++    sa.Column('description', sa.Text(), nullable=True),
++    sa.PrimaryKeyConstraint('id')
++    )
++    op.create_index(op.f('ix_roles_id'), 'roles', ['id'], unique=False)
++    op.create_index(op.f('ix_roles_role_name'), 'roles', ['role_name'], unique=True)
++    op.create_table('suppliers',
++    sa.Column('id', sa.Integer(), nullable=False),
++    sa.Column('supplier_name', sa.String(), nullable=False),
++    sa.Column('phone', sa.String(), nullable=True),
++    sa.Column('email', sa.String(), nullable=True),
++    sa.Column('address', sa.Text(), nullable=True),
++    sa.PrimaryKeyConstraint('id')
++    )
++    op.create_index(op.f('ix_suppliers_id'), 'suppliers', ['id'], unique=False)
++    op.create_table('churn_predictions',
++    sa.Column('id', sa.Integer(), nullable=False),
++    sa.Column('customer_id', sa.Integer(), nullable=False),
++    sa.Column('churn_probability', sa.Float(), nullable=False),
++    sa.Column('risk_level', sa.String(), nullable=False),
++    sa.Column('recommendation', sa.Text(), nullable=True),
++    sa.Column('generated_at', sa.DateTime(), nullable=True),
++    sa.ForeignKeyConstraint(['customer_id'], ['customers.id'], ),
++    sa.PrimaryKeyConstraint('id')
++    )
++    op.create_index(op.f('ix_churn_predictions_id'), 'churn_predictions', ['id'], unique=False)
++    op.create_table('customer_segments',
++    sa.Column('id', sa.Integer(), nullable=False),
++    sa.Column('customer_id', sa.Integer(), nullable=False),
++    sa.Column('segment_name', sa.String(), nullable=False),
++    sa.Column('cluster_number', sa.Integer(), nullable=False),
++    sa.Column('confidence', sa.Float(), nullable=True),
++    sa.Column('generated_at', sa.DateTime(), nullable=True),
++    sa.ForeignKeyConstraint(['customer_id'], ['customers.id'], ),
++    sa.PrimaryKeyConstraint('id')
++    )
++    op.create_index(op.f('ix_customer_segments_id'), 'customer_segments', ['id'], unique=False)
++    op.create_table('products',
++    sa.Column('id', sa.Integer(), nullable=False),
++    sa.Column('category_id', sa.Integer(), nullable=True),
++    sa.Column('supplier_id', sa.Integer(), nullable=True),
++    sa.Column('name', sa.String(), nullable=False),
++    sa.Column('sku', sa.String(), nullable=True),
++    sa.Column('barcode', sa.String(), nullable=True),
++    sa.Column('purchase_price', sa.Float(), nullable=False),
++    sa.Column('selling_price', sa.Float(), nullable=False),
++    sa.Column('description', sa.Text(), nullable=True),
++    sa.Column('image_url', sa.Text(), nullable=True),
++    sa.Column('is_active', sa.Boolean(), nullable=True),
++    sa.Column('created_at', sa.DateTime(), nullable=True),
++    sa.ForeignKeyConstraint(['category_id'], ['categories.id'], ),
++    sa.ForeignKeyConstraint(['supplier_id'], ['suppliers.id'], ),
++    sa.PrimaryKeyConstraint('id')
++    )
++    op.create_index(op.f('ix_products_id'), 'products', ['id'], unique=False)
++    op.create_index(op.f('ix_products_sku'), 'products', ['sku'], unique=True)
++    op.create_table('users',
++    sa.Column('id', sa.Integer(), nullable=False),
++    sa.Column('first_name', sa.String(), nullable=False),
++    sa.Column('last_name', sa.String(), nullable=False),
++    sa.Column('email', sa.String(), nullable=False),
++    sa.Column('hashed_password', sa.String(), nullable=False),
++    sa.Column('phone', sa.String(), nullable=True),
++    sa.Column('profile_image', sa.Text(), nullable=True),
++    sa.Column('is_active', sa.Boolean(), nullable=True),
++    sa.Column('last_login', sa.DateTime(), nullable=True),
++    sa.Column('created_at', sa.DateTime(), nullable=True),
++    sa.Column('updated_at', sa.DateTime(), nullable=True),
++    sa.Column('role_id', sa.Integer(), nullable=False),
++    sa.ForeignKeyConstraint(['role_id'], ['roles.id'], ),
++    sa.PrimaryKeyConstraint('id')
++    )
++    op.create_index(op.f('ix_users_email'), 'users', ['email'], unique=True)
++    op.create_index(op.f('ix_users_id'), 'users', ['id'], unique=False)
++    op.create_table('forecasts',
++    sa.Column('id', sa.Integer(), nullable=False),
++    sa.Column('product_id', sa.Integer(), nullable=True),
++    sa.Column('forecast_date', sa.Date(), nullable=False),
++    sa.Column('predicted_sales', sa.Float(), nullable=True),
++    sa.Column('predicted_revenue', sa.Float(), nullable=True),
++    sa.Column('model_used', sa.String(), nullable=True),
++    sa.Column('confidence_score', sa.Float(), nullable=True),
++    sa.Column('generated_at', sa.DateTime(), nullable=True),
++    sa.ForeignKeyConstraint(['product_id'], ['products.id'], ),
++    sa.PrimaryKeyConstraint('id')
++    )
++    op.create_index(op.f('ix_forecasts_id'), 'forecasts', ['id'], unique=False)
++    op.create_table('inventory',
++    sa.Column('id', sa.Integer(), nullable=False),
++    sa.Column('product_id', sa.Integer(), nullable=False),
++    sa.Column('quantity_available', sa.Integer(), nullable=False),
++    sa.Column('reorder_level', sa.Integer(), nullable=False),
++    sa.Column('warehouse_location', sa.String(), nullable=True),
++    sa.Column('last_updated', sa.DateTime(), nullable=True),
++    sa.ForeignKeyConstraint(['product_id'], ['products.id'], ),
++    sa.PrimaryKeyConstraint('id'),
++    sa.UniqueConstraint('product_id')
++    )
++    op.create_index(op.f('ix_inventory_id'), 'inventory', ['id'], unique=False)
++    op.create_table('inventory_transactions',
++    sa.Column('id', sa.Integer(), nullable=False),
++    sa.Column('product_id', sa.Integer(), nullable=False),
++    sa.Column('user_id', sa.Integer(), nullable=True),
++    sa.Column('transaction_type', sa.String(), nullable=False),
++    sa.Column('quantity', sa.Integer(), nullable=False),
++    sa.Column('remarks', sa.Text(), nullable=True),
++    sa.Column('created_at', sa.DateTime(), nullable=True),
++    sa.ForeignKeyConstraint(['product_id'], ['products.id'], ),
++    sa.ForeignKeyConstraint(['user_id'], ['users.id'], ),
++    sa.PrimaryKeyConstraint('id')
++    )
++    op.create_index(op.f('ix_inventory_transactions_id'), 'inventory_transactions', ['id'], unique=False)
++    op.create_table('product_recommendations',
++    sa.Column('id', sa.Integer(), nullable=False),
++    sa.Column('customer_id', sa.Integer(), nullable=False),
++    sa.Column('product_id', sa.Integer(), nullable=False),
++    sa.Column('recommendation_type', sa.String(), nullable=True),
++    sa.Column('score', sa.Float(), nullable=True),
++    sa.Column('generated_at', sa.DateTime(), nullable=True),
++    sa.ForeignKeyConstraint(['customer_id'], ['customers.id'], ),
++    sa.ForeignKeyConstraint(['product_id'], ['products.id'], ),
++    sa.PrimaryKeyConstraint('id')
++    )
++    op.create_index(op.f('ix_product_recommendations_id'), 'product_recommendations', ['id'], unique=False)
++    op.create_table('sales',
++    sa.Column('id', sa.Integer(), nullable=False),
++    sa.Column('invoice_number', sa.String(), nullable=True),
++    sa.Column('customer_id', sa.Integer(), nullable=True),
++    sa.Column('user_id', sa.Integer(), nullable=True),
++    sa.Column('subtotal', sa.Float(), nullable=False),
++    sa.Column('tax', sa.Float(), nullable=False),
++    sa.Column('discount', sa.Float(), nullable=False),
++    sa.Column('total_amount', sa.Float(), nullable=False),
++    sa.Column('payment_status', sa.String(), nullable=True),
++    sa.Column('payment_method', sa.String(), nullable=True),
++    sa.Column('sale_date', sa.DateTime(), nullable=True),
++    sa.ForeignKeyConstraint(['customer_id'], ['customers.id'], ),
++    sa.ForeignKeyConstraint(['user_id'], ['users.id'], ),
++    sa.PrimaryKeyConstraint('id')
++    )
++    op.create_index(op.f('ix_sales_id'), 'sales', ['id'], unique=False)
++    op.create_index(op.f('ix_sales_invoice_number'), 'sales', ['invoice_number'], unique=True)
++    op.create_table('uploaded_datasets',
++    sa.Column('id', sa.Integer(), nullable=False),
++    sa.Column('uploaded_by', sa.Integer(), nullable=True),
++    sa.Column('file_name', sa.String(), nullable=False),
++    sa.Column('file_path', sa.Text(), nullable=True),
++    sa.Column('upload_date', sa.DateTime(), nullable=True),
++    sa.Column('validation_status', sa.String(), nullable=True),
++    sa.Column('total_records', sa.Integer(), nullable=True),
++    sa.Column('valid_records', sa.Integer(), nullable=True),
++    sa.Column('invalid_records', sa.Integer(), nullable=True),
++    sa.ForeignKeyConstraint(['uploaded_by'], ['users.id'], ),
++    sa.PrimaryKeyConstraint('id')
++    )
++    op.create_index(op.f('ix_uploaded_datasets_id'), 'uploaded_datasets', ['id'], unique=False)
++    op.create_table('invoices',
++    sa.Column('id', sa.Integer(), nullable=False),
++    sa.Column('sale_id', sa.Integer(), nullable=True),
++    sa.Column('invoice_number', sa.String(), nullable=True),
++    sa.Column('due_date', sa.Date(), nullable=True),
++    sa.Column('payment_date', sa.Date(), nullable=True),
++    sa.Column('invoice_status', sa.String(), nullable=True),
++    sa.Column('pdf_url', sa.Text(), nullable=True),
++    sa.Column('created_at', sa.DateTime(), nullable=True),
++    sa.ForeignKeyConstraint(['sale_id'], ['sales.id'], ),
++    sa.PrimaryKeyConstraint('id')
++    )
++    op.create_index(op.f('ix_invoices_id'), 'invoices', ['id'], unique=False)
++    op.create_index(op.f('ix_invoices_invoice_number'), 'invoices', ['invoice_number'], unique=True)
++    op.create_table('sale_items',
++    sa.Column('id', sa.Integer(), nullable=False),
++    sa.Column('sale_id', sa.Integer(), nullable=False),
++    sa.Column('product_id', sa.Integer(), nullable=True),
++    sa.Column('quantity', sa.Integer(), nullable=False),
++    sa.Column('unit_price', sa.Float(), nullable=False),
++    sa.Column('discount', sa.Float(), nullable=False),
++    sa.Column('total', sa.Float(), nullable=False),
++    sa.ForeignKeyConstraint(['product_id'], ['products.id'], ),
++    sa.ForeignKeyConstraint(['sale_id'], ['sales.id'], ),
++    sa.PrimaryKeyConstraint('id')
++    )
++    op.create_index(op.f('ix_sale_items_id'), 'sale_items', ['id'], unique=False)
++    # ### end Alembic commands ###
++
++
++def downgrade() -> None:
++    # ### commands auto generated by Alembic - please adjust! ###
++    op.drop_index(op.f('ix_sale_items_id'), table_name='sale_items')
++    op.drop_table('sale_items')
++    op.drop_index(op.f('ix_invoices_invoice_number'), table_name='invoices')
++    op.drop_index(op.f('ix_invoices_id'), table_name='invoices')
++    op.drop_table('invoices')
++    op.drop_index(op.f('ix_uploaded_datasets_id'), table_name='uploaded_datasets')
++    op.drop_table('uploaded_datasets')
++    op.drop_index(op.f('ix_sales_invoice_number'), table_name='sales')
++    op.drop_index(op.f('ix_sales_id'), table_name='sales')
++    op.drop_table('sales')
++    op.drop_index(op.f('ix_product_recommendations_id'), table_name='product_recommendations')
++    op.drop_table('product_recommendations')
++    op.drop_index(op.f('ix_inventory_transactions_id'), table_name='inventory_transactions')
++    op.drop_table('inventory_transactions')
++    op.drop_index(op.f('ix_inventory_id'), table_name='inventory')
++    op.drop_table('inventory')
++    op.drop_index(op.f('ix_forecasts_id'), table_name='forecasts')
++    op.drop_table('forecasts')
++    op.drop_index(op.f('ix_users_id'), table_name='users')
++    op.drop_index(op.f('ix_users_email'), table_name='users')
++    op.drop_table('users')
++    op.drop_index(op.f('ix_products_sku'), table_name='products')
++    op.drop_index(op.f('ix_products_id'), table_name='products')
++    op.drop_table('products')
++    op.drop_index(op.f('ix_customer_segments_id'), table_name='customer_segments')
++    op.drop_table('customer_segments')
++    op.drop_index(op.f('ix_churn_predictions_id'), table_name='churn_predictions')
++    op.drop_table('churn_predictions')
++    op.drop_index(op.f('ix_suppliers_id'), table_name='suppliers')
++    op.drop_table('suppliers')
++    op.drop_index(op.f('ix_roles_role_name'), table_name='roles')
++    op.drop_index(op.f('ix_roles_id'), table_name='roles')
++    op.drop_table('roles')
++    op.drop_index(op.f('ix_customers_id'), table_name='customers')
++    op.drop_table('customers')
++    op.drop_index(op.f('ix_categories_id'), table_name='categories')
++    op.drop_table('categories')
++    op.drop_index(op.f('ix_anomalies_id'), table_name='anomalies')
++    op.drop_table('anomalies')
++    op.drop_index(op.f('ix_alerts_id'), table_name='alerts')
++    op.drop_table('alerts')
++    # ### end Alembic commands ###
+diff --git a/backend/alembic/versions/f51659f40fdc_use_full_name_for_customer.py b/backend/alembic/versions/f51659f40fdc_use_full_name_for_customer.py
+new file mode 100644
+index 0000000..250f0d1
+--- /dev/null
++++ b/backend/alembic/versions/f51659f40fdc_use_full_name_for_customer.py
+@@ -0,0 +1,36 @@
++"""use full_name for customer
++
++Revision ID: f51659f40fdc
++Revises: 31e4d514e2b8
++Create Date: 2026-08-07 14:56:03.800070
++
++"""
++from typing import Sequence, Union
++
++from alembic import op
++import sqlalchemy as sa
++
++
++# revision identifiers, used by Alembic.
++revision: str = 'f51659f40fdc'
++down_revision: Union[str, None] = '31e4d514e2b8'
++branch_labels: Union[str, Sequence[str], None] = None
++depends_on: Union[str, Sequence[str], None] = None
++
++
++def upgrade() -> None:
++    # ### commands auto generated by Alembic - please adjust! ###
++    op.add_column('customers', sa.Column('full_name', sa.String(), nullable=True))
++    op.execute("UPDATE customers SET full_name = first_name || ' ' || last_name")
++    op.alter_column('customers', 'full_name', nullable=False)
++    op.drop_column('customers', 'first_name')
++    op.drop_column('customers', 'last_name')
++    # ### end Alembic commands ###
++
++
++def downgrade() -> None:
++    # ### commands auto generated by Alembic - please adjust! ###
++    op.add_column('customers', sa.Column('last_name', sa.VARCHAR(), autoincrement=False, nullable=False))
++    op.add_column('customers', sa.Column('first_name', sa.VARCHAR(), autoincrement=False, nullable=False))
++    op.drop_column('customers', 'full_name')
++    # ### end Alembic commands ###
+diff --git a/backend/alembic/versions/f52fd5d1ffbb_use_full_name_for_user.py b/backend/alembic/versions/f52fd5d1ffbb_use_full_name_for_user.py
+new file mode 100644
+index 0000000..485f261
+--- /dev/null
++++ b/backend/alembic/versions/f52fd5d1ffbb_use_full_name_for_user.py
+@@ -0,0 +1,36 @@
++"""use full_name for user
++
++Revision ID: f52fd5d1ffbb
++Revises: f51659f40fdc
++Create Date: 2026-08-07 15:09:06.644903
++
++"""
++from typing import Sequence, Union
++
++from alembic import op
++import sqlalchemy as sa
++
++
++# revision identifiers, used by Alembic.
++revision: str = 'f52fd5d1ffbb'
++down_revision: Union[str, None] = 'f51659f40fdc'
++branch_labels: Union[str, Sequence[str], None] = None
++depends_on: Union[str, Sequence[str], None] = None
++
++
++def upgrade() -> None:
++    # ### commands auto generated by Alembic - please adjust! ###
++    op.add_column('users', sa.Column('full_name', sa.String(), nullable=True))
++    op.execute("UPDATE users SET full_name = first_name || ' ' || last_name")
++    op.alter_column('users', 'full_name', nullable=False)
++    op.drop_column('users', 'first_name')
++    op.drop_column('users', 'last_name')
++    # ### end Alembic commands ###
++
++
++def downgrade() -> None:
++    # ### commands auto generated by Alembic - please adjust! ###
++    op.add_column('users', sa.Column('last_name', sa.VARCHAR(), autoincrement=False, nullable=False))
++    op.add_column('users', sa.Column('first_name', sa.VARCHAR(), autoincrement=False, nullable=False))
++    op.drop_column('users', 'full_name')
++    # ### end Alembic commands ###
+diff --git a/backend/app/database.py b/backend/app/database.py
+index 227c587..8f3f73c 100644
+--- a/backend/app/database.py
++++ b/backend/app/database.py
+@@ -14,7 +14,7 @@ if not DATABASE_URL:
+         "DATABASE_URL=postgresql://user:pass@host:5432/dbname"
+     )
+ 
+-engine = create_engine(DATABASE_URL)
++engine = create_engine(DATABASE_URL, pool_pre_ping=True, pool_recycle=300)
+ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+ Base = declarative_base()
+ 
+diff --git a/backend/app/deps.py b/backend/app/deps.py
+index df0e09c..8f7c619 100644
+--- a/backend/app/deps.py
++++ b/backend/app/deps.py
+@@ -1,7 +1,7 @@
+ from typing import List
+ from fastapi import Depends, HTTPException, status
+ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+-from sqlalchemy.orm import Session
++from sqlalchemy.orm import Session, joinedload
+ 
+ from .database import get_db
+ from .core.security import decode_access_token
+@@ -9,7 +9,6 @@ from . import models
+ 
+ security = HTTPBearer()
+ 
+-
+ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security), db: Session = Depends(get_db)) -> models.User:
+     token = credentials.credentials
+     credentials_exception = HTTPException(
+@@ -23,24 +22,23 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(securit
+     user_id = payload.get("sub")
+     if user_id is None:
+         raise credentials_exception
+-    user = db.query(models.User).filter(models.User.id == int(user_id)).first()
++    user = db.query(models.User).options(joinedload(models.User.role), joinedload(models.User.business)).filter(models.User.id == int(user_id)).first()
+     if user is None or not user.is_active:
+         raise credentials_exception
+     return user
+ 
+-
+ def require_roles(*allowed_roles: str):
+     """Dependency factory enforcing Role-Based Access Control (RBAC)."""
+ 
+     def dependency(current_user: models.User = Depends(get_current_user)) -> models.User:
+-        if current_user.role.value not in allowed_roles:
++        if current_user.role.role_name not in allowed_roles:
+             raise HTTPException(
+                 status_code=status.HTTP_403_FORBIDDEN,
+-                detail=f"Role '{current_user.role.value}' is not permitted to perform this action.",
++                detail=f"Role '{current_user.role.role_name}' is not permitted to perform this action.",
+             )
++            
+         return current_user
+ 
+     return dependency
+ 
+-
+ ALL_ROLES = ["business_owner", "store_manager", "sales_executive", "admin"]
+diff --git a/backend/app/main.py b/backend/app/main.py
+index 9ed3c42..15a38b2 100644
+--- a/backend/app/main.py
++++ b/backend/app/main.py
+@@ -2,12 +2,10 @@ import os
+ from fastapi import FastAPI
+ from fastapi.middleware.cors import CORSMiddleware
+ 
+-from .database import Base, engine, SessionLocal
++from .database import engine, SessionLocal
+ from . import models
+ from .seed_data import seed_if_empty
+-from .routers import auth, customers, inventory, sales, invoices, analytics
+-
+-Base.metadata.create_all(bind=engine)
++from .routers import auth, customers, inventory, sales, invoices, analytics, categories, suppliers, datasets, users
+ 
+ app = FastAPI(
+     title="MarketMind AI",
+@@ -29,6 +27,10 @@ app.include_router(inventory.router)
+ app.include_router(sales.router)
+ app.include_router(invoices.router)
+ app.include_router(analytics.router)
++app.include_router(categories.router)
++app.include_router(suppliers.router)
++app.include_router(datasets.router)
++app.include_router(users.router)
+ 
+ 
+ 
+diff --git a/backend/app/models.py b/backend/app/models.py
+index 59262cf..faceab2 100644
+--- a/backend/app/models.py
++++ b/backend/app/models.py
+@@ -1,17 +1,36 @@
+-import enum
+ import datetime as dt
+ from sqlalchemy import (
+-    Column, Integer, String, Float, DateTime, ForeignKey, Enum, Boolean, Text
++    Column, Integer, String, Float, DateTime, ForeignKey, Boolean, Text, Date
+ )
+ from sqlalchemy.orm import relationship
+ from .database import Base
+ 
++# --- Phase 1: Core Schema ---
+ 
+-class RoleEnum(str, enum.Enum):
+-    business_owner = "business_owner"
+-    store_manager = "store_manager"
+-    sales_executive = "sales_executive"
+-    admin = "admin"
++class Business(Base):
++    __tablename__ = "businesses"
++
++    id = Column(Integer, primary_key=True, index=True)
++    company_name = Column(String, nullable=False)
++    created_at = Column(DateTime, default=dt.datetime.utcnow)
++
++    users = relationship("User", back_populates="business")
++    customers = relationship("Customer", back_populates="business")
++    categories = relationship("Category", back_populates="business")
++    suppliers = relationship("Supplier", back_populates="business")
++    products = relationship("Product", back_populates="business")
++    sales = relationship("Sale", back_populates="business")
++    alerts = relationship("Alert", back_populates="business")
++    forecasts = relationship("Forecast", back_populates="business")
++
++class Role(Base):
++    __tablename__ = "roles"
++
++    id = Column(Integer, primary_key=True, index=True)
++    role_name = Column(String, unique=True, index=True, nullable=False)
++    description = Column(Text, nullable=True)
++
++    users = relationship("User", back_populates="role")
+ 
+ 
+ class User(Base):
+@@ -21,86 +40,279 @@ class User(Base):
+     full_name = Column(String, nullable=False)
+     email = Column(String, unique=True, index=True, nullable=False)
+     hashed_password = Column(String, nullable=False)
+-    role = Column(Enum(RoleEnum), nullable=False, default=RoleEnum.sales_executive)
++    phone = Column(String, nullable=True)
++    profile_image = Column(Text, nullable=True)
+     is_active = Column(Boolean, default=True)
++    last_login = Column(DateTime, nullable=True)
+     created_at = Column(DateTime, default=dt.datetime.utcnow)
++    updated_at = Column(DateTime, default=dt.datetime.utcnow, onupdate=dt.datetime.utcnow)
++
++    role_id = Column(Integer, ForeignKey("roles.id"), nullable=False)
++    business_id = Column(Integer, ForeignKey("businesses.id"), nullable=False)
++    
++    role = relationship("Role", back_populates="users")
++    business = relationship("Business", back_populates="users")
++    
++    sales = relationship("Sale", back_populates="user")
++    inventory_transactions = relationship("InventoryTransaction", back_populates="user")
++    uploaded_datasets = relationship("UploadedDataset", back_populates="user")
+ 
+ 
+ class Customer(Base):
+     __tablename__ = "customers"
+ 
+     id = Column(Integer, primary_key=True, index=True)
+-    name = Column(String, nullable=False)
+-    email = Column(String, nullable=True)
++    business_id = Column(Integer, ForeignKey("businesses.id"), nullable=False)
++    full_name = Column(String, nullable=False)
+     phone = Column(String, nullable=True)
++    email = Column(String, nullable=True)
++    gender = Column(String, nullable=True)
++    dob = Column(Date, nullable=True)
++    address = Column(Text, nullable=True)
++    total_orders = Column(Integer, default=0)
++    total_spent = Column(Float, default=0.0)
++    last_purchase_date = Column(Date, nullable=True)
+     created_at = Column(DateTime, default=dt.datetime.utcnow)
+ 
+     sales = relationship("Sale", back_populates="customer")
+-    invoices = relationship("Invoice", back_populates="customer")
++    segments = relationship("CustomerSegment", back_populates="customer")
++    churn_predictions = relationship("ChurnPrediction", back_populates="customer")
++    recommendations = relationship("ProductRecommendation", back_populates="customer")
++    business = relationship("Business", back_populates="customers")
++
++
++class Category(Base):
++    __tablename__ = "categories"
++
++    id = Column(Integer, primary_key=True, index=True)
++    business_id = Column(Integer, ForeignKey("businesses.id"), nullable=False)
++    category_name = Column(String, nullable=False)
++    description = Column(Text, nullable=True)
++
++    products = relationship("Product", back_populates="category")
++    business = relationship("Business", back_populates="categories")
++
++
++class Supplier(Base):
++    __tablename__ = "suppliers"
++
++    id = Column(Integer, primary_key=True, index=True)
++    business_id = Column(Integer, ForeignKey("businesses.id"), nullable=False)
++    supplier_name = Column(String, nullable=False)
++    phone = Column(String, nullable=True)
++    email = Column(String, nullable=True)
++    address = Column(Text, nullable=True)
++
++    products = relationship("Product", back_populates="supplier")
++    business = relationship("Business", back_populates="suppliers")
+ 
+ 
+ class Product(Base):
+     __tablename__ = "products"
+ 
+     id = Column(Integer, primary_key=True, index=True)
++    business_id = Column(Integer, ForeignKey("businesses.id"), nullable=False)
++    category_id = Column(Integer, ForeignKey("categories.id"), nullable=True)
++    supplier_id = Column(Integer, ForeignKey("suppliers.id"), nullable=True)
++    
+     name = Column(String, nullable=False)
+-    category = Column(String, nullable=True)
+-    price = Column(Float, nullable=False, default=0.0)
+-    stock_quantity = Column(Integer, nullable=False, default=0)
+-    reorder_threshold = Column(Integer, nullable=False, default=10)
++    sku = Column(String, nullable=True, unique=True, index=True)
++    barcode = Column(String, nullable=True)
++    purchase_price = Column(Float, nullable=False, default=0.0)
++    selling_price = Column(Float, nullable=False, default=0.0)
++    description = Column(Text, nullable=True)
++    image_url = Column(Text, nullable=True)
++    is_active = Column(Boolean, default=True)
++    created_at = Column(DateTime, default=dt.datetime.utcnow)
++
++    category = relationship("Category", back_populates="products")
++    supplier = relationship("Supplier", back_populates="products")
++    inventory = relationship("Inventory", back_populates="product", uselist=False)
++    sale_items = relationship("SaleItem", back_populates="product")
++    forecasts = relationship("Forecast", back_populates="product")
++    recommendations = relationship("ProductRecommendation", back_populates="product")
++    business = relationship("Business", back_populates="products")
++
++
++class Inventory(Base):
++    __tablename__ = "inventory"
++
++    id = Column(Integer, primary_key=True, index=True)
++    product_id = Column(Integer, ForeignKey("products.id"), unique=True, nullable=False)
++    quantity_available = Column(Integer, nullable=False, default=0)
++    reorder_level = Column(Integer, nullable=False, default=10)
+     warehouse_location = Column(String, nullable=True)
++    last_updated = Column(DateTime, default=dt.datetime.utcnow, onupdate=dt.datetime.utcnow)
++
++    product = relationship("Product", back_populates="inventory")
++
+ 
+-    sales = relationship("Sale", back_populates="product")
++class InventoryTransaction(Base):
++    __tablename__ = "inventory_transactions"
++
++    id = Column(Integer, primary_key=True, index=True)
++    product_id = Column(Integer, ForeignKey("products.id"), nullable=False)
++    user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
++    transaction_type = Column(String, nullable=False)  # IN, OUT, RETURN, ADJUSTMENT
++    quantity = Column(Integer, nullable=False)
++    remarks = Column(Text, nullable=True)
++    created_at = Column(DateTime, default=dt.datetime.utcnow)
++
++    user = relationship("User", back_populates="inventory_transactions")
+ 
+ 
+ class Sale(Base):
+     __tablename__ = "sales"
+ 
+     id = Column(Integer, primary_key=True, index=True)
++    business_id = Column(Integer, ForeignKey("businesses.id"), nullable=False)
++    invoice_number = Column(String, unique=True, index=True, nullable=True)
+     customer_id = Column(Integer, ForeignKey("customers.id"), nullable=True)
+-    product_id = Column(Integer, ForeignKey("products.id"), nullable=True)
+-    quantity = Column(Integer, nullable=False, default=1)
+-    unit_price = Column(Float, nullable=False, default=0.0)
++    user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
++    subtotal = Column(Float, nullable=False, default=0.0)
++    tax = Column(Float, nullable=False, default=0.0)
++    discount = Column(Float, nullable=False, default=0.0)
+     total_amount = Column(Float, nullable=False, default=0.0)
++    payment_status = Column(String, default="completed")
++    payment_method = Column(String, nullable=True)
+     sale_date = Column(DateTime, default=dt.datetime.utcnow)
+-    source = Column(String, default="manual")  # manual | csv_upload
+ 
+     customer = relationship("Customer", back_populates="sales")
+-    product = relationship("Product", back_populates="sales")
++    user = relationship("User", back_populates="sales")
++    sale_items = relationship("SaleItem", back_populates="sale")
++    invoice = relationship("Invoice", back_populates="sale", uselist=False)
++    business = relationship("Business", back_populates="sales")
++
++
++class SaleItem(Base):
++    __tablename__ = "sale_items"
++
++    id = Column(Integer, primary_key=True, index=True)
++    sale_id = Column(Integer, ForeignKey("sales.id"), nullable=False)
++    product_id = Column(Integer, ForeignKey("products.id"), nullable=True)
++    quantity = Column(Integer, nullable=False, default=1)
++    unit_price = Column(Float, nullable=False, default=0.0)
++    discount = Column(Float, nullable=False, default=0.0)
++    total = Column(Float, nullable=False, default=0.0)
++
++    sale = relationship("Sale", back_populates="sale_items")
++    product = relationship("Product", back_populates="sale_items")
+ 
+ 
+ class Invoice(Base):
+     __tablename__ = "invoices"
+ 
+     id = Column(Integer, primary_key=True, index=True)
+-    customer_id = Column(Integer, ForeignKey("customers.id"), nullable=True)
++    sale_id = Column(Integer, ForeignKey("sales.id"), nullable=True)
+     invoice_number = Column(String, unique=True, index=True)
+-    amount = Column(Float, nullable=False, default=0.0)
+-    status = Column(String, default="pending")  # pending | paid | overdue
+-    due_date = Column(DateTime, nullable=True)
++    due_date = Column(Date, nullable=True)
++    payment_date = Column(Date, nullable=True)
++    invoice_status = Column(String, default="pending")  # pending, paid, overdue
++    pdf_url = Column(Text, nullable=True)
+     created_at = Column(DateTime, default=dt.datetime.utcnow)
+ 
+-    customer = relationship("Customer", back_populates="invoices")
++    sale = relationship("Sale", back_populates="invoice")
++
++
++class UploadedDataset(Base):
++    __tablename__ = "uploaded_datasets"
++
++    id = Column(Integer, primary_key=True, index=True)
++    business_id = Column(Integer, ForeignKey("businesses.id"), nullable=False)
++    uploaded_by = Column(Integer, ForeignKey("users.id"), nullable=True)
++    file_name = Column(String, nullable=False)
++    file_path = Column(Text, nullable=True)
++    upload_date = Column(DateTime, default=dt.datetime.utcnow)
++    validation_status = Column(String, default="pending")
++    total_records = Column(Integer, default=0)
++    valid_records = Column(Integer, default=0)
++    invalid_records = Column(Integer, default=0)
++
++    user = relationship("User", back_populates="uploaded_datasets")
+ 
+ 
+-class InventoryAlert(Base):
+-    __tablename__ = "inventory_alerts"
++class Alert(Base):
++    __tablename__ = "alerts"
+ 
+     id = Column(Integer, primary_key=True, index=True)
+-    product_id = Column(Integer, ForeignKey("products.id"))
+-    message = Column(String)
+-    level = Column(String, default="warning")  # info | warning | critical
++    business_id = Column(Integer, ForeignKey("businesses.id"), nullable=False)
++    alert_type = Column(String, nullable=False)  # e.g., "inventory", "ai"
++    title = Column(String, nullable=False)
++    description = Column(Text, nullable=True)
++    priority = Column(String, default="medium")  # low, medium, high, critical
++    is_read = Column(Boolean, default=False)
+     created_at = Column(DateTime, default=dt.datetime.utcnow)
++    
++    business = relationship("Business", back_populates="alerts")
++
++
++class Anomaly(Base):
++    __tablename__ = "anomalies"
++
++    id = Column(Integer, primary_key=True, index=True)
++    anomaly_type = Column(String, nullable=False)
++    reference_id = Column(Integer, nullable=True)
++    severity = Column(String, default="medium")
++    confidence = Column(Float, default=0.0)
++    description = Column(Text, nullable=True)
++    detected_at = Column(DateTime, default=dt.datetime.utcnow)
+     resolved = Column(Boolean, default=False)
+ 
+ 
+-class AnomalyAlert(Base):
+-    __tablename__ = "anomaly_alerts"
++# --- Phase 2: AI Tables ---
++
++class CustomerSegment(Base):
++    __tablename__ = "customer_segments"
+ 
+     id = Column(Integer, primary_key=True, index=True)
+-    category = Column(String)  # sales | inventory | revenue
+-    description = Column(Text)
+-    severity = Column(String, default="medium")  # low | medium | high
+-    score = Column(Float, default=0.0)
+-    created_at = Column(DateTime, default=dt.datetime.utcnow)
+-    related_id = Column(Integer, nullable=True)
++    customer_id = Column(Integer, ForeignKey("customers.id"), nullable=False)
++    segment_name = Column(String, nullable=False)
++    cluster_number = Column(Integer, nullable=False)
++    confidence = Column(Float, nullable=True)
++    generated_at = Column(DateTime, default=dt.datetime.utcnow)
++
++    customer = relationship("Customer", back_populates="segments")
++
++
++class Forecast(Base):
++    __tablename__ = "forecasts"
++
++    id = Column(Integer, primary_key=True, index=True)
++    business_id = Column(Integer, ForeignKey("businesses.id"), nullable=False)
++    product_id = Column(Integer, ForeignKey("products.id"), nullable=True)
++    forecast_date = Column(Date, nullable=False)
++    predicted_sales = Column(Float, nullable=True)
++    predicted_revenue = Column(Float, nullable=True)
++    model_used = Column(String, nullable=True)
++    confidence_score = Column(Float, nullable=True)
++    generated_at = Column(DateTime, default=dt.datetime.utcnow)
++
++    product = relationship("Product", back_populates="forecasts")
++    business = relationship("Business", back_populates="forecasts")
++
++
++class ChurnPrediction(Base):
++    __tablename__ = "churn_predictions"
++
++    id = Column(Integer, primary_key=True, index=True)
++    customer_id = Column(Integer, ForeignKey("customers.id"), nullable=False)
++    churn_probability = Column(Float, nullable=False)
++    risk_level = Column(String, nullable=False)
++    recommendation = Column(Text, nullable=True)
++    generated_at = Column(DateTime, default=dt.datetime.utcnow)
++
++    customer = relationship("Customer", back_populates="churn_predictions")
++
++
++class ProductRecommendation(Base):
++    __tablename__ = "product_recommendations"
++
++    id = Column(Integer, primary_key=True, index=True)
++    customer_id = Column(Integer, ForeignKey("customers.id"), nullable=False)
++    product_id = Column(Integer, ForeignKey("products.id"), nullable=False)
++    recommendation_type = Column(String, nullable=True)  # cross_sell, upsell
++    score = Column(Float, nullable=True)
++    generated_at = Column(DateTime, default=dt.datetime.utcnow)
++
++    customer = relationship("Customer", back_populates="recommendations")
++    product = relationship("Product", back_populates="recommendations")
+diff --git a/backend/app/routers/analytics.py b/backend/app/routers/analytics.py
+index 346f872..49ade9b 100644
+--- a/backend/app/routers/analytics.py
++++ b/backend/app/routers/analytics.py
+@@ -1,7 +1,7 @@
+ import datetime as dt
+ from collections import defaultdict
+ from fastapi import APIRouter, Depends
+-from sqlalchemy.orm import Session
++from sqlalchemy.orm import Session, joinedload
+ from sqlalchemy import func
+ 
+ from .. import models, schemas
+@@ -13,31 +13,34 @@ router = APIRouter(prefix="/api/analytics", tags=["Analytics"])
+ 
+ @router.get("/kpis", response_model=schemas.KPIResponse)
+ def kpis(db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+-    sales = db.query(models.Sale).all()
++    sales = db.query(models.Sale).options(joinedload(models.Sale.sale_items)).filter(models.Sale.business_id == current_user.business_id).all()
+     total_revenue = sum(s.total_amount for s in sales)
+     total_sales = len(sales)
+-    total_customers = db.query(models.Customer).count()
+-    total_products = db.query(models.Product).count()
++    total_customers = db.query(models.Customer).filter(models.Customer.business_id == current_user.business_id).count()
++    total_products = db.query(models.Product).filter(models.Product.business_id == current_user.business_id).count()
+     low_stock_count = (
+-        db.query(models.Product)
+-        .filter(models.Product.stock_quantity <= models.Product.reorder_threshold)
++        db.query(models.Inventory)
++        .join(models.Product)
++        .filter(models.Inventory.quantity_available <= models.Inventory.reorder_level, models.Product.business_id == current_user.business_id)
+         .count()
+     )
+-    pending_invoices = db.query(models.Invoice).filter(models.Invoice.status == "pending").count()
+-    overdue_invoices = db.query(models.Invoice).filter(models.Invoice.status == "overdue").count()
++    pending_invoices = db.query(models.Invoice).join(models.Sale).filter(models.Invoice.invoice_status == "pending", models.Sale.business_id == current_user.business_id).count()
++    overdue_invoices = db.query(models.Invoice).join(models.Sale).filter(models.Invoice.invoice_status == "overdue", models.Sale.business_id == current_user.business_id).count()
+ 
+     revenue_by_day = defaultdict(float)
+     for s in sales:
+-        day = s.sale_date.strftime("%Y-%m-%d")
+-        revenue_by_day[day] += s.total_amount
++        if s.sale_date:
++            day = s.sale_date.strftime("%Y-%m-%d")
++            revenue_by_day[day] += s.total_amount
+     revenue_series = [{"date": d, "revenue": round(v, 2)} for d, v in sorted(revenue_by_day.items())][-30:]
+ 
+     product_revenue = defaultdict(float)
+     for s in sales:
+-        if s.product_id:
+-            product_revenue[s.product_id] += s.total_amount
++        for item in s.sale_items:
++            if item.product_id:
++                product_revenue[item.product_id] += item.total
+     top_ids = sorted(product_revenue.items(), key=lambda x: x[1], reverse=True)[:5]
+-    products_by_id = {p.id: p for p in db.query(models.Product).all()}
++    products_by_id = {p.id: p for p in db.query(models.Product).filter(models.Product.business_id == current_user.business_id).all()}
+     top_products = [
+         {"product": products_by_id[pid].name if pid in products_by_id else f"#{pid}", "revenue": round(rev, 2)}
+         for pid, rev in top_ids
+diff --git a/backend/app/routers/auth.py b/backend/app/routers/auth.py
+index 0d060fe..bb9f514 100644
+--- a/backend/app/routers/auth.py
++++ b/backend/app/routers/auth.py
+@@ -1,5 +1,6 @@
++import datetime as dt
+ from fastapi import APIRouter, Depends, HTTPException, status
+-from sqlalchemy.orm import Session
++from sqlalchemy.orm import Session, joinedload
+ 
+ from .. import models, schemas
+ from ..database import get_db
+@@ -15,7 +16,6 @@ router = APIRouter(
+     tags=["Authentication"],
+ )
+ 
+-
+ @router.post(
+     "/register",
+     response_model=schemas.UserOut,
+@@ -36,21 +36,36 @@ def register(
+             status_code=400,
+             detail="Email already registered",
+         )
++        
++    # Public registration always creates a new business and owner
++    role = db.query(models.Role).filter(models.Role.role_name == "business_owner").first()
++    if not role:
++        raise HTTPException(
++            status_code=500,
++            detail="Role 'business_owner' not found in database.",
++        )
++
++    business = models.Business(company_name=payload.company_name)
++    db.add(business)
++    db.flush()
+ 
+     user = models.User(
+-        full_name=payload.name,
++        full_name=payload.full_name,
+         email=payload.email,
+         hashed_password=hash_password(payload.password),
+-        role=payload.role,
++        role_id=role.id,
++        business_id=business.id,
+     )
+ 
+     db.add(user)
+     db.commit()
+     db.refresh(user)
++    
++    # Eager load role and business for response
++    user = db.query(models.User).options(joinedload(models.User.role), joinedload(models.User.business)).filter(models.User.id == user.id).first()
+ 
+     return user
+ 
+-
+ @router.post("/login", response_model=schemas.Token)
+ def login(
+     payload: schemas.LoginRequest,
+@@ -58,6 +73,7 @@ def login(
+ ):
+     user = (
+         db.query(models.User)
++        .options(joinedload(models.User.role), joinedload(models.User.business))
+         .filter(models.User.email == payload.email)
+         .first()
+     )
+@@ -70,11 +86,15 @@ def login(
+             status_code=401,
+             detail="Incorrect email or password",
+         )
++        
++    # Update last_login
++    user.last_login = dt.datetime.utcnow()
++    db.commit()
+ 
+     token = create_access_token(
+         {
+             "sub": str(user.id),
+-            "role": user.role.value,
++            "role": user.role.role_name,
+         }
+     )
+ 
+@@ -84,7 +104,6 @@ def login(
+         "user": user,
+     }
+ 
+-
+ @router.get("/me", response_model=schemas.UserOut)
+ def me(
+     current_user: models.User = Depends(get_current_user),
+diff --git a/backend/app/routers/categories.py b/backend/app/routers/categories.py
+new file mode 100644
+index 0000000..0b6f897
+--- /dev/null
++++ b/backend/app/routers/categories.py
+@@ -0,0 +1,38 @@
++from typing import List
++from fastapi import APIRouter, Depends, HTTPException
++from sqlalchemy.orm import Session
++
++from .. import models, schemas
++from ..database import get_db
++from ..deps import get_current_user, require_roles
++
++router = APIRouter(prefix="/api/categories", tags=["Categories"])
++
++@router.get("/", response_model=List[schemas.CategoryOut])
++def list_categories(db: Session = Depends(get_db), current_user=Depends(get_current_user)):
++    return db.query(models.Category).filter(models.Category.business_id == current_user.business_id).order_by(models.Category.category_name).all()
++
++@router.post("/", response_model=schemas.CategoryOut, status_code=201)
++def create_category(
++    payload: schemas.CategoryCreate,
++    db: Session = Depends(get_db),
++    current_user=Depends(require_roles("business_owner", "store_manager", "admin")),
++):
++    category = models.Category(**payload.model_dump(), business_id=current_user.business_id)
++    db.add(category)
++    db.commit()
++    db.refresh(category)
++    return category
++
++@router.delete("/{category_id}", status_code=204)
++def delete_category(
++    category_id: int,
++    db: Session = Depends(get_db),
++    current_user=Depends(require_roles("admin", "business_owner")),
++):
++    category = db.query(models.Category).filter(models.Category.id == category_id, models.Category.business_id == current_user.business_id).first()
++    if not category:
++        raise HTTPException(status_code=404, detail="Category not found")
++    db.delete(category)
++    db.commit()
++    return None
+diff --git a/backend/app/routers/customers.py b/backend/app/routers/customers.py
+index 09cbaff..d06bd37 100644
+--- a/backend/app/routers/customers.py
++++ b/backend/app/routers/customers.py
+@@ -13,7 +13,7 @@ router = APIRouter(prefix="/api/customers", tags=["Customers"])
+ 
+ @router.get("/", response_model=List[schemas.CustomerOut])
+ def list_customers(db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+-    return db.query(models.Customer).order_by(models.Customer.id.desc()).all()
++    return db.query(models.Customer).filter(models.Customer.business_id == current_user.business_id).order_by(models.Customer.id.desc()).all()
+ 
+ 
+ @router.post("/", response_model=schemas.CustomerOut, status_code=201)
+@@ -22,7 +22,7 @@ def create_customer(
+     db: Session = Depends(get_db),
+     current_user=Depends(require_roles("business_owner", "sales_executive", "admin")),
+ ):
+-    customer = models.Customer(**payload.model_dump())
++    customer = models.Customer(**payload.model_dump(), business_id=current_user.business_id)
+     db.add(customer)
+     db.commit()
+     db.refresh(customer)
+@@ -31,7 +31,7 @@ def create_customer(
+ 
+ @router.get("/{customer_id}", response_model=schemas.CustomerOut)
+ def get_customer(customer_id: int, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+-    customer = db.query(models.Customer).filter(models.Customer.id == customer_id).first()
++    customer = db.query(models.Customer).filter(models.Customer.id == customer_id, models.Customer.business_id == current_user.business_id).first()
+     if not customer:
+         raise HTTPException(status_code=404, detail="Customer not found")
+     return customer
+@@ -43,7 +43,7 @@ def delete_customer(
+     db: Session = Depends(get_db),
+     current_user=Depends(require_roles("admin", "business_owner")),
+ ):
+-    customer = db.query(models.Customer).filter(models.Customer.id == customer_id).first()
++    customer = db.query(models.Customer).filter(models.Customer.id == customer_id, models.Customer.business_id == current_user.business_id).first()
+     if not customer:
+         raise HTTPException(status_code=404, detail="Customer not found")
+     db.delete(customer)
+@@ -59,8 +59,7 @@ def upload_customers_csv(
+ ):
+     """
+     Bulk-import customers from a CSV.
+-    Required column: name. Optional columns: email, phone.
+-    Existing customers (matched by name) are skipped, not duplicated.
++    Required column: full_name. Optional columns: email, phone, gender, address.
+     """
+     if not file.filename.lower().endswith(".csv"):
+         raise HTTPException(status_code=400, detail="Only .csv files are supported")
+@@ -72,29 +71,58 @@ def upload_customers_csv(
+         raise HTTPException(status_code=400, detail=f"Could not parse CSV: {exc}")
+ 
+     df.columns = [c.strip().lower().replace(" ", "_") for c in df.columns]
+-    if "name" not in df.columns:
+-        raise HTTPException(status_code=422, detail="CSV must contain a 'name' column")
+-
+-    df = df.dropna(subset=["name"])
++    
++    if "full_name" not in df.columns:
++        if "first_name" in df.columns and "last_name" in df.columns:
++            df["full_name"] = df["first_name"].astype(str) + " " + df["last_name"].astype(str)
++        elif "name" in df.columns:
++            df["full_name"] = df["name"]
++        else:
++            raise HTTPException(status_code=422, detail="CSV must contain a 'full_name' column")
++
++    df = df.dropna(subset=["full_name"])
++
++    # Create dataset tracking record
++    dataset = models.UploadedDataset(
++        uploaded_by=current_user.id,
++        business_id=current_user.business_id,
++        file_name=file.filename,
++        total_records=len(df),
++        validation_status="processed"
++    )
++    db.add(dataset)
++    db.flush()
+ 
+     created, skipped = 0, 0
+     for _, row in df.iterrows():
+-        name = str(row["name"]).strip()
+-        if not name:
++        full_name = str(row["full_name"]).strip()
++        if not full_name:
+             skipped += 1
+             continue
+-        existing = db.query(models.Customer).filter(models.Customer.name == name).first()
++            
++        existing = db.query(models.Customer).filter(
++            models.Customer.full_name == full_name,
++            models.Customer.business_id == current_user.business_id
++        ).first()
++        
+         if existing:
+             skipped += 1
+             continue
++            
+         db.add(
+             models.Customer(
+-                name=name,
++                business_id=current_user.business_id,
++                full_name=full_name,
+                 email=str(row["email"]).strip() if "email" in df.columns and pd.notna(row.get("email")) else None,
+                 phone=str(row["phone"]).strip() if "phone" in df.columns and pd.notna(row.get("phone")) else None,
++                gender=str(row["gender"]).strip() if "gender" in df.columns and pd.notna(row.get("gender")) else None,
++                address=str(row["address"]).strip() if "address" in df.columns and pd.notna(row.get("address")) else None,
+             )
+         )
+         created += 1
+ 
++    dataset.valid_records = created
++    dataset.invalid_records = skipped
+     db.commit()
+-    return {"rows_processed": int(len(df)), "customers_created": created, "rows_skipped": skipped}
++    
++    return {"rows_processed": int(len(df)), "customers_created": created, "rows_skipped": skipped, "dataset_id": dataset.id}
+diff --git a/backend/app/routers/datasets.py b/backend/app/routers/datasets.py
+new file mode 100644
+index 0000000..742f0ac
+--- /dev/null
++++ b/backend/app/routers/datasets.py
+@@ -0,0 +1,13 @@
++from typing import List
++from fastapi import APIRouter, Depends
++from sqlalchemy.orm import Session
++
++from .. import models, schemas
++from ..database import get_db
++from ..deps import get_current_user
++
++router = APIRouter(prefix="/api/datasets", tags=["Datasets"])
++
++@router.get("/", response_model=List[schemas.UploadedDatasetOut])
++def list_datasets(db: Session = Depends(get_db), current_user=Depends(get_current_user)):
++    return db.query(models.UploadedDataset).filter(models.UploadedDataset.business_id == current_user.business_id).order_by(models.UploadedDataset.upload_date.desc()).all()
+diff --git a/backend/app/routers/inventory.py b/backend/app/routers/inventory.py
+index e4c88cd..8bcb061 100644
+--- a/backend/app/routers/inventory.py
++++ b/backend/app/routers/inventory.py
+@@ -2,7 +2,7 @@ import io
+ from typing import List
+ import pandas as pd
+ from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
+-from sqlalchemy.orm import Session
++from sqlalchemy.orm import Session, joinedload
+ 
+ from .. import models, schemas
+ from ..database import get_db
+@@ -11,32 +11,39 @@ from ..deps import get_current_user, require_roles
+ router = APIRouter(prefix="/api/inventory", tags=["Inventory"])
+ 
+ 
+-def _check_and_create_alert(db: Session, product: models.Product):
+-    if product.stock_quantity <= product.reorder_threshold:
++def _check_and_create_alert(db: Session, inventory: models.Inventory, product_name: str, business_id: int):
++    if inventory.quantity_available <= inventory.reorder_level:
+         existing = (
+-            db.query(models.InventoryAlert)
+-            .filter(models.InventoryAlert.product_id == product.id, models.InventoryAlert.resolved == False)  # noqa: E712
++            db.query(models.Alert)
++            .filter(
++                models.Alert.alert_type == "inventory", 
++                models.Alert.title.like(f"%{product_name}%"),
++                models.Alert.is_read == False,
++                models.Alert.business_id == business_id
++            )
+             .first()
+         )
+         if not existing:
+-            level = "critical" if product.stock_quantity == 0 else "warning"
+-            alert = models.InventoryAlert(
+-                product_id=product.id,
+-                message=f"'{product.name}' stock is low ({product.stock_quantity} left, reorder threshold {product.reorder_threshold}).",
+-                level=level,
++            priority = "critical" if inventory.quantity_available == 0 else "high"
++            alert = models.Alert(
++                alert_type="inventory",
++                title=f"Low Stock: {product_name}",
++                description=f"Only {inventory.quantity_available} left (threshold: {inventory.reorder_level}).",
++                priority=priority,
++                business_id=business_id
+             )
+             db.add(alert)
+             db.commit()
+-    else:
+-        db.query(models.InventoryAlert).filter(
+-            models.InventoryAlert.product_id == product.id, models.InventoryAlert.resolved == False  # noqa: E712
+-        ).update({"resolved": True})
+-        db.commit()
+ 
+ 
+ @router.get("/products", response_model=List[schemas.ProductOut])
+ def list_products(db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+-    return db.query(models.Product).order_by(models.Product.id.desc()).all()
++    return db.query(models.Product).filter(models.Product.business_id == current_user.business_id).order_by(models.Product.id.desc()).all()
++
++
++@router.get("/stock", response_model=List[schemas.InventoryOut])
++def list_stock(db: Session = Depends(get_db), current_user=Depends(get_current_user)):
++    return db.query(models.Inventory).join(models.Product).filter(models.Product.business_id == current_user.business_id).all()
+ 
+ 
+ @router.post("/products", response_model=schemas.ProductOut, status_code=201)
+@@ -45,37 +52,77 @@ def create_product(
+     db: Session = Depends(get_db),
+     current_user=Depends(require_roles("business_owner", "store_manager", "admin")),
+ ):
+-    product = models.Product(**payload.model_dump())
++    product_data = payload.model_dump(exclude={"stock_quantity", "reorder_level", "warehouse_location"})
++    product = models.Product(**product_data, business_id=current_user.business_id)
+     db.add(product)
+     db.commit()
+     db.refresh(product)
+-    _check_and_create_alert(db, product)
++    
++    # Create associated inventory
++    inventory = models.Inventory(
++        product_id=product.id,
++        quantity_available=payload.stock_quantity,
++        reorder_level=payload.reorder_level,
++        warehouse_location=payload.warehouse_location
++    )
++    db.add(inventory)
++    
++    # Create initial transaction if stock > 0
++    if payload.stock_quantity > 0:
++        tx = models.InventoryTransaction(
++            product_id=product.id,
++            user_id=current_user.id,
++            transaction_type="IN",
++            quantity=payload.stock_quantity,
++            remarks="Initial stock setup"
++        )
++        db.add(tx)
++        
++    db.commit()
++    _check_and_create_alert(db, inventory, product.name, current_user.business_id)
++    
+     return product
+ 
+ 
+-@router.patch("/products/{product_id}/stock", response_model=schemas.ProductOut)
++@router.patch("/products/{product_id}/stock", response_model=schemas.InventoryOut)
+ def update_stock(
+     product_id: int,
+     payload: schemas.StockUpdate,
+     db: Session = Depends(get_db),
+     current_user=Depends(require_roles("business_owner", "store_manager", "admin")),
+ ):
+-    product = db.query(models.Product).filter(models.Product.id == product_id).first()
++    product = db.query(models.Product).filter(models.Product.id == product_id, models.Product.business_id == current_user.business_id).first()
+     if not product:
+         raise HTTPException(status_code=404, detail="Product not found")
+-    product.stock_quantity = max(0, product.stock_quantity + payload.quantity_delta)
++        
++    inventory = db.query(models.Inventory).filter(models.Inventory.product_id == product_id).first()
++    if not inventory:
++        raise HTTPException(status_code=404, detail="Inventory record not found")
++        
++    inventory.quantity_available = max(0, inventory.quantity_available + payload.quantity_delta)
++    
++    tx = models.InventoryTransaction(
++        product_id=product.id,
++        user_id=current_user.id,
++        transaction_type=payload.transaction_type,
++        quantity=abs(payload.quantity_delta) if payload.quantity_delta > 0 else -abs(payload.quantity_delta),
++        remarks=payload.remarks or "Manual adjustment"
++    )
++    db.add(tx)
++    
+     db.commit()
+-    db.refresh(product)
+-    _check_and_create_alert(db, product)
+-    return product
++    db.refresh(inventory)
++    _check_and_create_alert(db, inventory, product.name, current_user.business_id)
++    
++    return inventory
+ 
+ 
+-@router.get("/alerts", response_model=List[schemas.InventoryAlertOut])
++@router.get("/alerts", response_model=List[schemas.AlertOut])
+ def list_alerts(db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+     return (
+-        db.query(models.InventoryAlert)
+-        .filter(models.InventoryAlert.resolved == False)  # noqa: E712
+-        .order_by(models.InventoryAlert.created_at.desc())
++        db.query(models.Alert)
++        .filter(models.Alert.is_read == False, models.Alert.business_id == current_user.business_id)
++        .order_by(models.Alert.created_at.desc())
+         .all()
+     )
+ 
+@@ -88,8 +135,8 @@ def upload_products_csv(
+ ):
+     """
+     Bulk-import a product catalog / inventory list from CSV.
+-    Required columns: name, price. Optional: category, stock_quantity, reorder_threshold, warehouse_location.
+-    Existing products (matched by name) get their price/stock updated rather than duplicated.
++    Required columns: name, selling_price. 
++    Optional: purchase_price, category_name, supplier_name, stock_quantity, reorder_level, warehouse_location.
+     """
+     if not file.filename.lower().endswith(".csv"):
+         raise HTTPException(status_code=400, detail="Only .csv files are supported")
+@@ -101,13 +148,28 @@ def upload_products_csv(
+         raise HTTPException(status_code=400, detail=f"Could not parse CSV: {exc}")
+ 
+     df.columns = [c.strip().lower().replace(" ", "_") for c in df.columns]
+-    required = {"name", "price"}
++    
++    # Handle old price column if present
++    if "price" in df.columns and "selling_price" not in df.columns:
++        df["selling_price"] = df["price"]
++        
++    required = {"name", "selling_price"}
+     missing = required - set(df.columns)
+     if missing:
+         raise HTTPException(status_code=422, detail=f"CSV missing required columns: {sorted(missing)}")
+ 
+-    df["price"] = pd.to_numeric(df["price"], errors="coerce")
+-    df = df.dropna(subset=["name", "price"])
++    df["selling_price"] = pd.to_numeric(df["selling_price"], errors="coerce")
++    df = df.dropna(subset=["name", "selling_price"])
++
++    dataset = models.UploadedDataset(
++        uploaded_by=current_user.id,
++        business_id=current_user.business_id,
++        file_name=file.filename,
++        total_records=len(df),
++        validation_status="processed"
++    )
++    db.add(dataset)
++    db.flush()
+ 
+     created, updated, skipped = 0, 0, 0
+     for _, row in df.iterrows():
+@@ -115,33 +177,54 @@ def upload_products_csv(
+         if not name:
+             skipped += 1
+             continue
++            
+         stock_qty = int(row["stock_quantity"]) if "stock_quantity" in df.columns and pd.notna(row.get("stock_quantity")) else 0
+-        reorder = int(row["reorder_threshold"]) if "reorder_threshold" in df.columns and pd.notna(row.get("reorder_threshold")) else 10
++        reorder = int(row["reorder_level"]) if "reorder_level" in df.columns and pd.notna(row.get("reorder_level")) else 10
+ 
+-        existing = db.query(models.Product).filter(models.Product.name == name).first()
++        existing = db.query(models.Product).filter(models.Product.name == name, models.Product.business_id == current_user.business_id).first()
+         if existing:
+-            existing.price = float(row["price"])
+-            if "stock_quantity" in df.columns and pd.notna(row.get("stock_quantity")):
+-                existing.stock_quantity = stock_qty
+-            if "category" in df.columns and pd.notna(row.get("category")):
+-                existing.category = str(row["category"]).strip()
+-            if "warehouse_location" in df.columns and pd.notna(row.get("warehouse_location")):
+-                existing.warehouse_location = str(row["warehouse_location"]).strip()
++            existing.selling_price = float(row["selling_price"])
++            if "purchase_price" in df.columns and pd.notna(row.get("purchase_price")):
++                existing.purchase_price = float(row["purchase_price"])
++                
++            inv = db.query(models.Inventory).filter(models.Inventory.product_id == existing.id).first()
++            if inv:
++                if "stock_quantity" in df.columns and pd.notna(row.get("stock_quantity")):
++                    inv.quantity_available = stock_qty
++                if "warehouse_location" in df.columns and pd.notna(row.get("warehouse_location")):
++                    inv.warehouse_location = str(row["warehouse_location"]).strip()
++                _check_and_create_alert(db, inv, existing.name, current_user.business_id)
++                
+             updated += 1
+-            _check_and_create_alert(db, existing)
+         else:
+             product = models.Product(
+                 name=name,
+-                category=str(row["category"]).strip() if "category" in df.columns and pd.notna(row.get("category")) else None,
+-                price=float(row["price"]),
+-                stock_quantity=stock_qty,
+-                reorder_threshold=reorder,
+-                warehouse_location=str(row["warehouse_location"]).strip() if "warehouse_location" in df.columns and pd.notna(row.get("warehouse_location")) else None,
++                business_id=current_user.business_id,
++                selling_price=float(row["selling_price"]),
++                purchase_price=float(row["purchase_price"]) if "purchase_price" in df.columns and pd.notna(row.get("purchase_price")) else 0.0,
+             )
+             db.add(product)
+             db.flush()
++            
++            inv = models.Inventory(
++                product_id=product.id,
++                quantity_available=stock_qty,
++                reorder_level=reorder,
++                warehouse_location=str(row["warehouse_location"]).strip() if "warehouse_location" in df.columns and pd.notna(row.get("warehouse_location")) else None
++            )
++            db.add(inv)
++            
++            if stock_qty > 0:
++                db.add(models.InventoryTransaction(
++                    product_id=product.id, user_id=current_user.id, transaction_type="IN", quantity=stock_qty, remarks="CSV Upload"
++                ))
++            
++            db.flush()
+             created += 1
+-            _check_and_create_alert(db, product)
++            _check_and_create_alert(db, inv, product.name, current_user.business_id)
+ 
++    dataset.valid_records = created + updated
++    dataset.invalid_records = skipped
+     db.commit()
+-    return {"rows_processed": int(len(df)), "products_created": created, "products_updated": updated, "rows_skipped": skipped}
++    
++    return {"rows_processed": int(len(df)), "products_created": created, "products_updated": updated, "rows_skipped": skipped, "dataset_id": dataset.id}
+diff --git a/backend/app/routers/invoices.py b/backend/app/routers/invoices.py
+index 369cefd..77f13f4 100644
+--- a/backend/app/routers/invoices.py
++++ b/backend/app/routers/invoices.py
+@@ -1,4 +1,3 @@
+-import uuid
+ import datetime as dt
+ from typing import List
+ from fastapi import APIRouter, Depends, HTTPException
+@@ -11,13 +10,9 @@ from ..deps import get_current_user, require_roles
+ router = APIRouter(prefix="/api/invoices", tags=["Invoices"])
+ 
+ 
+-def _generate_invoice_number() -> str:
+-    return f"INV-{dt.datetime.utcnow().strftime('%Y%m%d')}-{uuid.uuid4().hex[:6].upper()}"
+-
+-
+ @router.get("/", response_model=List[schemas.InvoiceOut])
+ def list_invoices(db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+-    return db.query(models.Invoice).order_by(models.Invoice.created_at.desc()).all()
++    return db.query(models.Invoice).join(models.Sale).filter(models.Sale.business_id == current_user.business_id).order_by(models.Invoice.created_at.desc()).all()
+ 
+ 
+ @router.post("/", response_model=schemas.InvoiceOut, status_code=201)
+@@ -26,12 +21,19 @@ def create_invoice(
+     db: Session = Depends(get_db),
+     current_user=Depends(require_roles("sales_executive", "business_owner", "admin")),
+ ):
++    sale = db.query(models.Sale).filter(models.Sale.id == payload.sale_id, models.Sale.business_id == current_user.business_id).first()
++    if not sale:
++        raise HTTPException(status_code=404, detail="Sale not found")
++        
++    existing_invoice = db.query(models.Invoice).filter(models.Invoice.sale_id == sale.id).first()
++    if existing_invoice:
++        raise HTTPException(status_code=400, detail="This sale already has an invoice.")
++        
+     invoice = models.Invoice(
+-        customer_id=payload.customer_id,
+-        invoice_number=_generate_invoice_number(),
+-        amount=payload.amount,
+-        status=payload.status,
++        sale_id=payload.sale_id,
++        invoice_number=sale.invoice_number,
+         due_date=payload.due_date,
++        invoice_status="pending",
+     )
+     db.add(invoice)
+     db.commit()
+@@ -46,12 +48,19 @@ def update_invoice_status(
+     db: Session = Depends(get_db),
+     current_user=Depends(require_roles("sales_executive", "business_owner", "admin")),
+ ):
+-    invoice = db.query(models.Invoice).filter(models.Invoice.id == invoice_id).first()
++    invoice = db.query(models.Invoice).join(models.Sale).filter(models.Invoice.id == invoice_id, models.Sale.business_id == current_user.business_id).first()
+     if not invoice:
+         raise HTTPException(status_code=404, detail="Invoice not found")
++        
+     if payload.status not in {"pending", "paid", "overdue"}:
+         raise HTTPException(status_code=400, detail="Invalid status")
+-    invoice.status = payload.status
++        
++    invoice.invoice_status = payload.status
++    if payload.status == "paid":
++        invoice.payment_date = dt.datetime.utcnow().date()
++        if invoice.sale:
++            invoice.sale.payment_status = "completed"
++            
+     db.commit()
+     db.refresh(invoice)
+     return invoice
+@@ -60,13 +69,18 @@ def update_invoice_status(
+ @router.get("/overdue/check")
+ def check_overdue(db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+     """Marks pending invoices past their due date as overdue and returns the updated count."""
+-    now = dt.datetime.utcnow()
++    now = dt.datetime.utcnow().date()
+     invoices = (
+         db.query(models.Invoice)
+-        .filter(models.Invoice.status == "pending", models.Invoice.due_date < now)
++        .join(models.Sale)
++        .filter(
++            models.Invoice.invoice_status == "pending", 
++            models.Invoice.due_date < now,
++            models.Sale.business_id == current_user.business_id
++        )
+         .all()
+     )
+     for inv in invoices:
+-        inv.status = "overdue"
++        inv.invoice_status = "overdue"
+     db.commit()
+     return {"marked_overdue": len(invoices)}
+diff --git a/backend/app/routers/sales.py b/backend/app/routers/sales.py
+index 8d55831..cd23288 100644
+--- a/backend/app/routers/sales.py
++++ b/backend/app/routers/sales.py
+@@ -3,7 +3,7 @@ import datetime as dt
+ from typing import List, Optional
+ import pandas as pd
+ from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
+-from sqlalchemy.orm import Session
++from sqlalchemy.orm import Session, joinedload
+ 
+ from .. import models, schemas
+ from ..database import get_db
+@@ -21,7 +21,7 @@ def list_sales(
+     db: Session = Depends(get_db),
+     current_user=Depends(get_current_user),
+ ):
+-    return db.query(models.Sale).order_by(models.Sale.sale_date.desc()).limit(limit).all()
++    return db.query(models.Sale).options(joinedload(models.Sale.sale_items)).filter(models.Sale.business_id == current_user.business_id).order_by(models.Sale.sale_date.desc()).limit(limit).all()
+ 
+ 
+ @router.post("/", response_model=schemas.SaleOut, status_code=201)
+@@ -30,26 +30,73 @@ def create_sale(
+     db: Session = Depends(get_db),
+     current_user=Depends(require_roles("business_owner", "store_manager", "sales_executive", "admin")),
+ ):
+-    total = payload.unit_price * payload.quantity
++    if not payload.items:
++        raise HTTPException(status_code=400, detail="Sale must contain at least one item")
++        
++    sale_date = payload.sale_date or dt.datetime.utcnow()
++    invoice_number = f"INV-{sale_date.strftime('%Y%m%d%H%M%S')}"
++
++    customer_id = payload.customer_id
++    if not customer_id and payload.customer_name:
++        customer = db.query(models.Customer).filter(models.Customer.full_name == payload.customer_name, models.Customer.business_id == current_user.business_id).first()
++        if not customer:
++            customer = models.Customer(full_name=payload.customer_name, business_id=current_user.business_id)
++            db.add(customer)
++            db.flush()
++        customer_id = customer.id
++
+     sale = models.Sale(
+-        customer_id=payload.customer_id,
+-        product_id=payload.product_id,
+-        quantity=payload.quantity,
+-        unit_price=payload.unit_price,
+-        total_amount=total,
+-        sale_date=payload.sale_date or dt.datetime.utcnow(),
+-        source="manual",
++        business_id=current_user.business_id,
++        invoice_number=invoice_number,
++        customer_id=customer_id,
++        user_id=current_user.id,
++        payment_status="completed",
++        payment_method=payload.payment_method,
++        sale_date=sale_date,
+     )
+     db.add(sale)
+-    if payload.product_id:
+-        product = db.query(models.Product).filter(models.Product.id == payload.product_id).first()
+-        if product:
+-            product.stock_quantity = max(0, product.stock_quantity - payload.quantity)
+-            db.commit()
+-            _check_and_create_alert(db, product)
++    db.flush()
++
++    subtotal = 0.0
++    for item in payload.items:
++        total = item.unit_price * item.quantity - item.discount
++        subtotal += total
++        
++        sale_item = models.SaleItem(
++            sale_id=sale.id,
++            product_id=item.product_id,
++            quantity=item.quantity,
++            unit_price=item.unit_price,
++            discount=item.discount,
++            total=total
++        )
++        db.add(sale_item)
++        
++        # Deduct inventory
++        inventory = db.query(models.Inventory).filter(models.Inventory.product_id == item.product_id).first()
++        if inventory:
++            inventory.quantity_available = max(0, inventory.quantity_available - item.quantity)
++            
++            # Record transaction
++            tx = models.InventoryTransaction(
++                product_id=item.product_id,
++                user_id=current_user.id,
++                transaction_type="OUT",
++                quantity=item.quantity,
++                remarks=f"Sale {invoice_number}"
++            )
++            db.add(tx)
++            
++            product = db.query(models.Product).filter(models.Product.id == item.product_id).first()
++            _check_and_create_alert(db, inventory, product.name if product else "Unknown")
++            
++    # Apply taxes/discounts at header level if needed
++    sale.subtotal = subtotal
++    sale.total_amount = subtotal
++    
+     db.commit()
+-    db.refresh(sale)
+-    return sale
++    
++    return db.query(models.Sale).options(joinedload(models.Sale.sale_items)).filter(models.Sale.id == sale.id).first()
+ 
+ 
+ @router.post("/upload-csv")
+@@ -60,8 +107,7 @@ def upload_sales_csv(
+ ):
+     """
+     Upload a CSV of historical/point-of-sale transactions.
+-    Expected columns: product_name, quantity, unit_price, [customer_name], [sale_date]
+-    Performs validation, auto-creates missing products/customers, and stores transactions.
++    Expected columns: product_name, quantity, unit_price, invoice_number (optional), customer_name, sale_date
+     """
+     if not file.filename.lower().endswith(".csv"):
+         raise HTTPException(status_code=400, detail="Only .csv files are supported")
+@@ -82,48 +128,105 @@ def upload_sales_csv(
+     df["unit_price"] = pd.to_numeric(df["unit_price"], errors="coerce")
+     df = df.dropna(subset=["quantity", "unit_price"])
+     df = df[(df["quantity"] > 0) & (df["unit_price"] >= 0)]
++    
++    # If no invoice_number, group each row as its own sale
++    if "invoice_number" not in df.columns:
++        df["invoice_number"] = [f"CSV-{dt.datetime.utcnow().timestamp()}-{i}" for i in range(len(df))]
++
++    dataset = models.UploadedDataset(
++        uploaded_by=current_user.id,
++        business_id=current_user.business_id,
++        file_name=file.filename,
++        total_records=len(df),
++        validation_status="processed"
++    )
++    db.add(dataset)
++    db.flush()
+ 
+     created, skipped = 0, 0
+-    for _, row in df.iterrows():
++    grouped = df.groupby("invoice_number")
++    
++    for inv_num, group in grouped:
+         try:
+-            product = db.query(models.Product).filter(models.Product.name == str(row["product_name"]).strip()).first()
+-            if not product:
+-                product = models.Product(name=str(row["product_name"]).strip(), price=float(row["unit_price"]), stock_quantity=0)
+-                db.add(product)
+-                db.flush()
+-
++            first_row = group.iloc[0]
++            
+             customer = None
+-            if "customer_name" in df.columns and pd.notna(row.get("customer_name")):
+-                cname = str(row["customer_name"]).strip()
+-                customer = db.query(models.Customer).filter(models.Customer.name == cname).first()
++            if "customer_name" in df.columns and pd.notna(first_row.get("customer_name")):
++                c_name = str(first_row["customer_name"]).strip()
++                
++                customer = db.query(models.Customer).filter(
++                    models.Customer.full_name == c_name,
++                    models.Customer.business_id == current_user.business_id
++                ).first()
++                
+                 if not customer:
+-                    customer = models.Customer(name=cname)
++                    customer = models.Customer(full_name=c_name, business_id=current_user.business_id)
+                     db.add(customer)
+                     db.flush()
+ 
+             sale_date = dt.datetime.utcnow()
+-            if "sale_date" in df.columns and pd.notna(row.get("sale_date")):
++            if "sale_date" in df.columns and pd.notna(first_row.get("sale_date")):
+                 try:
+-                    sale_date = pd.to_datetime(row["sale_date"]).to_pydatetime()
++                    sale_date = pd.to_datetime(first_row["sale_date"]).to_pydatetime()
+                 except Exception:
+                     pass
+ 
+-            qty = int(row["quantity"])
+-            price = float(row["unit_price"])
+             sale = models.Sale(
++                business_id=current_user.business_id,
++                invoice_number=str(inv_num),
+                 customer_id=customer.id if customer else None,
+-                product_id=product.id,
+-                quantity=qty,
+-                unit_price=price,
+-                total_amount=qty * price,
++                user_id=current_user.id,
+                 sale_date=sale_date,
+-                source="csv_upload",
++                payment_status="completed"
+             )
+             db.add(sale)
++            db.flush()
++            
++            subtotal = 0.0
++            
++            for _, row in group.iterrows():
++                product_name = str(row["product_name"]).strip()
++                product = db.query(models.Product).filter(models.Product.name == product_name, models.Product.business_id == current_user.business_id).first()
++                if not product:
++                    product = models.Product(name=product_name, selling_price=float(row["unit_price"]), business_id=current_user.business_id)
++                    db.add(product)
++                    db.flush()
++                    # Add zero-stock inventory
++                    inv = models.Inventory(product_id=product.id)
++                    db.add(inv)
++                    db.flush()
++
++                qty = int(row["quantity"])
++                price = float(row["unit_price"])
++                item_total = qty * price
++                subtotal += item_total
++                
++                db.add(models.SaleItem(
++                    sale_id=sale.id,
++                    product_id=product.id,
++                    quantity=qty,
++                    unit_price=price,
++                    total=item_total
++                ))
++                
++                # Deduct inventory
++                inventory = db.query(models.Inventory).filter(models.Inventory.product_id == product.id).first()
++                if inventory:
++                    inventory.quantity_available = max(0, inventory.quantity_available - qty)
++                    db.add(models.InventoryTransaction(
++                        product_id=product.id, user_id=current_user.id, transaction_type="OUT", quantity=qty, remarks=f"CSV Sale {inv_num}"
++                    ))
++                    _check_and_create_alert(db, inventory, product.name)
++            
++            sale.subtotal = subtotal
++            sale.total_amount = subtotal
+             created += 1
+         except Exception:
+-            skipped += 1
++            skipped += len(group)
+             continue
+ 
++    dataset.valid_records = len(df) - skipped
++    dataset.invalid_records = skipped
+     db.commit()
+-    return {"rows_processed": int(len(df)), "sales_created": created, "rows_skipped": skipped}
++    
++    return {"rows_processed": int(len(df)), "sales_created": created, "rows_skipped": skipped, "dataset_id": dataset.id}
+diff --git a/backend/app/routers/suppliers.py b/backend/app/routers/suppliers.py
+new file mode 100644
+index 0000000..f9673d9
+--- /dev/null
++++ b/backend/app/routers/suppliers.py
+@@ -0,0 +1,38 @@
++from typing import List
++from fastapi import APIRouter, Depends, HTTPException
++from sqlalchemy.orm import Session
++
++from .. import models, schemas
++from ..database import get_db
++from ..deps import get_current_user, require_roles
++
++router = APIRouter(prefix="/api/suppliers", tags=["Suppliers"])
++
++@router.get("/", response_model=List[schemas.SupplierOut])
++def list_suppliers(db: Session = Depends(get_db), current_user=Depends(get_current_user)):
++    return db.query(models.Supplier).filter(models.Supplier.business_id == current_user.business_id).order_by(models.Supplier.supplier_name).all()
++
++@router.post("/", response_model=schemas.SupplierOut, status_code=201)
++def create_supplier(
++    payload: schemas.SupplierCreate,
++    db: Session = Depends(get_db),
++    current_user=Depends(require_roles("business_owner", "store_manager", "admin")),
++):
++    supplier = models.Supplier(**payload.model_dump(), business_id=current_user.business_id)
++    db.add(supplier)
++    db.commit()
++    db.refresh(supplier)
++    return supplier
++
++@router.delete("/{supplier_id}", status_code=204)
++def delete_supplier(
++    supplier_id: int,
++    db: Session = Depends(get_db),
++    current_user=Depends(require_roles("admin", "business_owner")),
++):
++    supplier = db.query(models.Supplier).filter(models.Supplier.id == supplier_id, models.Supplier.business_id == current_user.business_id).first()
++    if not supplier:
++        raise HTTPException(status_code=404, detail="Supplier not found")
++    db.delete(supplier)
++    db.commit()
++    return None
+diff --git a/backend/app/routers/users.py b/backend/app/routers/users.py
+new file mode 100644
+index 0000000..68316a1
+--- /dev/null
++++ b/backend/app/routers/users.py
+@@ -0,0 +1,65 @@
++from typing import List
++from fastapi import APIRouter, Depends, HTTPException, status
++from sqlalchemy.orm import Session, joinedload
++from pydantic import BaseModel
++
++from .. import models, schemas
++from ..database import get_db
++from ..deps import get_current_user, require_roles
++from ..core.security import hash_password
++
++router = APIRouter(prefix="/api/users", tags=["Users"])
++
++class InviteRequest(BaseModel):
++    full_name: str
++    email: str
++    password: str
++    role_name: str
++
++@router.get("/", response_model=List[schemas.UserOut])
++def list_team(db: Session = Depends(get_db), current_user=Depends(get_current_user)):
++    return db.query(models.User).options(joinedload(models.User.role), joinedload(models.User.business)).filter(models.User.business_id == current_user.business_id).all()
++
++@router.post("/", response_model=schemas.UserOut, status_code=status.HTTP_201_CREATED)
++def invite_user(
++    payload: InviteRequest,
++    db: Session = Depends(get_db),
++    current_user=Depends(require_roles("business_owner", "admin")),
++):
++    existing = db.query(models.User).filter(models.User.email == payload.email).first()
++    if existing:
++        raise HTTPException(status_code=400, detail="Email already registered")
++        
++    role = db.query(models.Role).filter(models.Role.role_name == payload.role_name).first()
++    if not role:
++        raise HTTPException(status_code=400, detail=f"Invalid role: {payload.role_name}")
++        
++    user = models.User(
++        full_name=payload.full_name,
++        email=payload.email,
++        hashed_password=hash_password(payload.password),
++        role_id=role.id,
++        business_id=current_user.business_id,
++    )
++    db.add(user)
++    db.commit()
++    db.refresh(user)
++    
++    return db.query(models.User).options(joinedload(models.User.role), joinedload(models.User.business)).filter(models.User.id == user.id).first()
++
++@router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
++def remove_user(
++    user_id: int,
++    db: Session = Depends(get_db),
++    current_user=Depends(require_roles("business_owner", "admin")),
++):
++    if user_id == current_user.id:
++        raise HTTPException(status_code=400, detail="Cannot remove yourself")
++        
++    user = db.query(models.User).filter(models.User.id == user_id, models.User.business_id == current_user.business_id).first()
++    if not user:
++        raise HTTPException(status_code=404, detail="User not found")
++        
++    db.delete(user)
++    db.commit()
++    return None
+diff --git a/backend/app/schemas.py b/backend/app/schemas.py
+index 0bacc14..e8d4699 100644
+--- a/backend/app/schemas.py
++++ b/backend/app/schemas.py
+@@ -1,224 +1,286 @@
+ import datetime as dt
+ from typing import Optional, List
+ from pydantic import BaseModel, EmailStr, ConfigDict
+-from .models import RoleEnum
++
++# --- Core Schema ---
++
++class RoleBase(BaseModel):
++    role_name: str
++    description: Optional[str] = None
++
++class RoleOut(RoleBase):
++    model_config = ConfigDict(from_attributes=True)
++    id: int
++
++class BusinessOut(BaseModel):
++    model_config = ConfigDict(from_attributes=True)
++    id: int
++    company_name: str
++    created_at: dt.datetime
+ 
+ class RegisterRequest(BaseModel):
+-    name: str
++    company_name: str
++    full_name: str
+     email: EmailStr
+     password: str
+-    role: RoleEnum = RoleEnum.sales_executive
+-# ---------- Auth / Users ----------
+-    role: RoleEnum
+-
+ 
+ class LoginRequest(BaseModel):
+     email: EmailStr
+     password: str
+ 
+-
+ class AuthUser(BaseModel):
+     id: int
+-    name: str
++    full_name: str
+     email: str
+-    role: RoleEnum
++    role: RoleOut
++    business: BusinessOut
+ 
+     class Config:
+         from_attributes = True
+ 
+-
+ class AuthResponse(BaseModel):
+-    token: str
++    access_token: str
+     token_type: str = "bearer"
+     user: AuthUser
+ 
+-
+-class UserCreate(BaseModel):
+-    full_name: str
+-    email: EmailStr
+-    password: str
+-    role: RoleEnum = RoleEnum.sales_executive
+-
+-
+ class UserOut(BaseModel):
+     model_config = ConfigDict(from_attributes=True)
+     id: int
+     full_name: str
+     email: str
+-    role: RoleEnum
++    phone: Optional[str] = None
++    role: RoleOut
++    business: BusinessOut
+     is_active: bool
+ 
++class UserRoleUpdate(BaseModel):
++    role_name: str
+ 
+ class Token(BaseModel):
+     access_token: str
+     token_type: str = "bearer"
+     user: UserOut
+ 
+-
+-class LoginRequest(BaseModel):
+-    email: EmailStr
+-    password: str
+-
+-
+-# ---------- Customers ----------
++# --- Customers ---
+ class CustomerCreate(BaseModel):
+-    name: str
++    full_name: str
+     email: Optional[str] = None
+     phone: Optional[str] = None
+-
++    gender: Optional[str] = None
++    dob: Optional[dt.date] = None
++    address: Optional[str] = None
+ 
+ class CustomerOut(CustomerCreate):
+     model_config = ConfigDict(from_attributes=True)
+     id: int
++    total_orders: int
++    total_spent: float
++    last_purchase_date: Optional[dt.date]
+     created_at: dt.datetime
+ 
++# --- Categories & Suppliers ---
++class CategoryCreate(BaseModel):
++    category_name: str
++    description: Optional[str] = None
++
++class CategoryOut(CategoryCreate):
++    model_config = ConfigDict(from_attributes=True)
++    id: int
++
++class SupplierCreate(BaseModel):
++    supplier_name: str
++    phone: Optional[str] = None
++    email: Optional[str] = None
++    address: Optional[str] = None
++
++class SupplierOut(SupplierCreate):
++    model_config = ConfigDict(from_attributes=True)
++    id: int
+ 
+-# ---------- Products / Inventory ----------
++# --- Products & Inventory ---
+ class ProductCreate(BaseModel):
+     name: str
+-    category: Optional[str] = None
+-    price: float
++    category_id: Optional[int] = None
++    supplier_id: Optional[int] = None
++    sku: Optional[str] = None
++    barcode: Optional[str] = None
++    purchase_price: float = 0.0
++    selling_price: float = 0.0
++    description: Optional[str] = None
++    image_url: Optional[str] = None
++    is_active: bool = True
++    
++    # Optional fields for initial inventory
+     stock_quantity: int = 0
+-    reorder_threshold: int = 10
++    reorder_level: int = 10
+     warehouse_location: Optional[str] = None
+ 
++class ProductOut(BaseModel):
++    model_config = ConfigDict(from_attributes=True)
++    id: int
++    name: str
++    category_id: Optional[int]
++    supplier_id: Optional[int]
++    sku: Optional[str]
++    barcode: Optional[str]
++    purchase_price: float
++    selling_price: float
++    description: Optional[str]
++    image_url: Optional[str]
++    is_active: bool
++    created_at: dt.datetime
+ 
+-class ProductOut(ProductCreate):
++class InventoryOut(BaseModel):
+     model_config = ConfigDict(from_attributes=True)
+     id: int
++    product_id: int
++    quantity_available: int
++    reorder_level: int
++    warehouse_location: Optional[str]
++    last_updated: dt.datetime
+ 
++class InventoryTransactionOut(BaseModel):
++    model_config = ConfigDict(from_attributes=True)
++    id: int
++    product_id: int
++    user_id: Optional[int]
++    transaction_type: str
++    quantity: int
++    remarks: Optional[str]
++    created_at: dt.datetime
+ 
+ class StockUpdate(BaseModel):
+     quantity_delta: int  # positive to add stock, negative to deduct
++    transaction_type: str = "ADJUSTMENT"
++    remarks: Optional[str] = None
++
++# --- Sales & Invoices ---
++class SaleItemCreate(BaseModel):
++    product_id: int
++    quantity: int = 1
++    unit_price: float
++    discount: float = 0.0
+ 
++class SaleItemOut(SaleItemCreate):
++    model_config = ConfigDict(from_attributes=True)
++    id: int
++    sale_id: int
++    total: float
+ 
+-# ---------- Sales ----------
+ class SaleCreate(BaseModel):
+     customer_id: Optional[int] = None
+-    product_id: Optional[int] = None
+-    quantity: int = 1
+-    unit_price: float
++    customer_name: Optional[str] = None
++    payment_method: Optional[str] = None
+     sale_date: Optional[dt.datetime] = None
+-
++    items: List[SaleItemCreate]
+ 
+ class SaleOut(BaseModel):
+     model_config = ConfigDict(from_attributes=True)
+     id: int
++    invoice_number: Optional[str]
+     customer_id: Optional[int]
+-    product_id: Optional[int]
+-    quantity: int
+-    unit_price: float
++    user_id: Optional[int]
++    subtotal: float
++    tax: float
++    discount: float
+     total_amount: float
++    payment_status: str
++    payment_method: Optional[str]
+     sale_date: dt.datetime
+-    source: str
++    sale_items: List[SaleItemOut] = []
+ 
+-
+-# ---------- Invoices ----------
+ class InvoiceCreate(BaseModel):
+-    customer_id: Optional[int] = None
+-    amount: float
+-    status: str = "pending"
+-    due_date: Optional[dt.datetime] = None
+-
++    sale_id: Optional[int] = None
++    due_date: Optional[dt.date] = None
+ 
+ class InvoiceOut(BaseModel):
+     model_config = ConfigDict(from_attributes=True)
+     id: int
+-    customer_id: Optional[int]
++    sale_id: Optional[int]
+     invoice_number: str
+-    amount: float
+-    status: str
+-    due_date: Optional[dt.datetime]
++    due_date: Optional[dt.date]
++    payment_date: Optional[dt.date]
++    invoice_status: str
++    pdf_url: Optional[str]
+     created_at: dt.datetime
+ 
+-
+ class InvoiceStatusUpdate(BaseModel):
+     status: str
+ 
+-
+-# ---------- Inventory Alerts ----------
+-class InventoryAlertOut(BaseModel):
++# --- Uploaded Datasets & Alerts ---
++class UploadedDatasetOut(BaseModel):
+     model_config = ConfigDict(from_attributes=True)
+     id: int
+-    product_id: int
+-    message: str
+-    level: str
++    uploaded_by: Optional[int]
++    file_name: str
++    file_path: Optional[str]
++    upload_date: dt.datetime
++    validation_status: str
++    total_records: int
++    valid_records: int
++    invalid_records: int
++
++class AlertOut(BaseModel):
++    model_config = ConfigDict(from_attributes=True)
++    id: int
++    alert_type: str
++    title: str
++    description: Optional[str]
++    priority: str
++    is_read: bool
+     created_at: dt.datetime
+-    resolved: bool
+-
+-
+-# ---------- AI Responses ----------
+-class ForecastPoint(BaseModel):
+-    period: str
+-    predicted_revenue: float
+-
+-
+-class ForecastResponse(BaseModel):
+-    history: List[dict]
+-    forecast: List[ForecastPoint]
+-    trend: str
+-    growth_pct: float
+-    mae: Optional[float] = None
+-    rmse: Optional[float] = None
+-    r2: Optional[float] = None
+-
+-
+-class SegmentSummary(BaseModel):
+-    segment: str
+-    customer_count: int
+-    avg_purchase_value: float
+-    avg_purchase_frequency: float
+-
+-
+-class SegmentationResponse(BaseModel):
+-    segments: List[SegmentSummary]
+-    silhouette_score: Optional[float] = None
+-    customers: List[dict]
+-
+-
+-class ChurnRow(BaseModel):
+-    customer_id: int
+-    customer_name: str
+-    churn_probability: float
+-    risk_category: str
+-    recommendation: str
+-
+-
+-class ChurnResponse(BaseModel):
+-    rows: List[ChurnRow]
+-    accuracy: Optional[float] = None
+-    precision: Optional[float] = None
+-    recall: Optional[float] = None
+-    f1: Optional[float] = None
+-
+-
+-class RecommendationRow(BaseModel):
+-    customer_id: int
+-    customer_name: str
+-    recommended_products: List[str]
+-    reason: str
+-
+-
+-class RecommendationResponse(BaseModel):
+-    rows: List[RecommendationRow]
+-
+ 
+ class AnomalyOut(BaseModel):
+     model_config = ConfigDict(from_attributes=True)
+     id: int
+-    category: str
+-    description: str
++    anomaly_type: str
++    reference_id: Optional[int]
+     severity: str
+-    score: float
+-    created_at: dt.datetime
++    confidence: float
++    description: Optional[str]
++    detected_at: dt.datetime
++    resolved: bool
+ 
++# --- AI Responses ---
++class CustomerSegmentOut(BaseModel):
++    model_config = ConfigDict(from_attributes=True)
++    id: int
++    customer_id: int
++    segment_name: str
++    cluster_number: int
++    confidence: Optional[float]
++    generated_at: dt.datetime
+ 
+-class AnomalyResponse(BaseModel):
+-    alerts: List[AnomalyOut]
+-    detection_accuracy: Optional[float] = None
+-    false_positive_rate: Optional[float] = None
++class ForecastOut(BaseModel):
++    model_config = ConfigDict(from_attributes=True)
++    id: int
++    product_id: Optional[int]
++    forecast_date: dt.date
++    predicted_sales: Optional[float]
++    predicted_revenue: Optional[float]
++    model_used: Optional[str]
++    confidence_score: Optional[float]
++    generated_at: dt.datetime
++
++class ChurnPredictionOut(BaseModel):
++    model_config = ConfigDict(from_attributes=True)
++    id: int
++    customer_id: int
++    churn_probability: float
++    risk_level: str
++    recommendation: Optional[str]
++    generated_at: dt.datetime
+ 
++class ProductRecommendationOut(BaseModel):
++    model_config = ConfigDict(from_attributes=True)
++    id: int
++    customer_id: int
++    product_id: int
++    recommendation_type: Optional[str]
++    score: Optional[float]
++    generated_at: dt.datetime
+ 
++# Aggregated responses for Analytics (Phase 1)
+ class KPIResponse(BaseModel):
+     total_revenue: float
+     total_sales: int
+diff --git a/backend/app/seed_data.py b/backend/app/seed_data.py
+index a907781..118477b 100644
+--- a/backend/app/seed_data.py
++++ b/backend/app/seed_data.py
+@@ -6,113 +6,111 @@ from . import models
+ from .core.security import hash_password
+ random.seed(42)
+ 
+-DEMO_USERS = [
+-    ("Asha Rao", "owner@marketmind.ai", "Owner@123", models.RoleEnum.business_owner),
+-    ("Vikram Shetty", "manager@marketmind.ai", "Manager@123", models.RoleEnum.store_manager),
+-    ("Priya Nair", "sales@marketmind.ai", "Sales@123", models.RoleEnum.sales_executive),
+-    ("System Admin", "admin@marketmind.ai", "Admin@123", models.RoleEnum.admin),
++DEMO_USERS_BUSINESS_1 = [
++    ("Asha Rao", "owner@marketmind.ai", "Owner@123", "business_owner"),
++    ("Vikram Shetty", "manager@marketmind.ai", "Manager@123", "store_manager"),
++    ("Priya Nair", "sales@marketmind.ai", "Sales@123", "sales_executive"),
+ ]
+ 
+-PRODUCT_CATALOG = [
+-    ("Organic Basmati Rice 5kg", "Grocery", 650),
+-    ("Cold-Pressed Sunflower Oil 1L", "Grocery", 210),
+-    ("Whole Wheat Atta 10kg", "Grocery", 480),
+-    ("Assam Black Tea 500g", "Beverages", 190),
+-    ("Filter Coffee Powder 500g", "Beverages", 260),
+-    ("Toor Dal 1kg", "Grocery", 145,),
+-    ("Herbal Shampoo 340ml", "Personal Care", 320),
+-    ("Ayurvedic Soap Pack of 4", "Personal Care", 180),
+-    ("LED Bulb 9W", "Home & Electronics", 120),
+-    ("Non-stick Frying Pan", "Home & Electronics", 899,),
+-    ("Stainless Steel Water Bottle", "Home & Electronics", 350),
+-    ("Notebook Set of 5", "Stationery", 150),
++DEMO_USERS_BUSINESS_2 = [
++    ("Rahul Jain", "rahul@techstore.ai", "Tech@123", "business_owner"),
+ ]
+ 
+-CUSTOMER_NAMES = [
+-    "Ramesh Kumar", "Sunita Patil", "Arjun Mehta", "Fatima Sheikh", "Deepak Verma",
+-    "Kavya Iyer", "Rohit Sharma", "Anjali Gupta", "Suresh Reddy", "Meera Joshi",
+-    "Karan Malhotra", "Divya Pillai", "Naveen Kumar", "Pooja Bansal", "Vivek Nair",
+-    "Shreya Desai", "Manoj Tiwari", "Ritu Chawla", "Ajay Singh", "Neha Kulkarni",
++ROLES = [
++    ("business_owner", "Business Owner with full access"),
++    ("store_manager", "Store Manager with inventory and sales access"),
++    ("sales_executive", "Sales Executive with sales access"),
++    ("admin", "System Administrator"),
+ ]
+ 
+-
+ def seed_if_empty(db: Session):
+-    if db.query(models.User).count() > 0:
++    if db.query(models.Business).count() > 0:
+         return  # already seeded
+ 
+-    for name, email, password, role in DEMO_USERS:
+-        db.add(models.User(full_name=name, email=email, hashed_password=hash_password(password), role=role))
+-
+-    products = []
+-    for name, category, price in PRODUCT_CATALOG:
+-        p = models.Product(
+-            name=name,
+-            category=category,
+-            price=price,
+-            stock_quantity=random.randint(0, 150),
+-            reorder_threshold=20,
+-            warehouse_location=random.choice(["Warehouse A", "Warehouse B", "Warehouse C"]),
+-        )
+-        db.add(p)
+-        products.append(p)
++    # Seed Roles
++    db_roles = {}
++    for r_name, r_desc in ROLES:
++        role = models.Role(role_name=r_name, description=r_desc)
++        db.add(role)
++        db_roles[r_name] = role
+     db.flush()
+ 
+-    customers = []
+-    for name in CUSTOMER_NAMES:
+-        c = models.Customer(name=name, email=f"{name.split()[0].lower()}@example.com", phone=f"9{random.randint(100000000, 999999999)}")
+-        db.add(c)
+-        customers.append(c)
++    # Seed Businesses
++    b1 = models.Business(company_name="Mega Mart")
++    b2 = models.Business(company_name="Tech Store")
++    db.add_all([b1, b2])
+     db.flush()
+ 
+-    start_date = dt.datetime.utcnow() - dt.timedelta(days=120)
+-    for day_offset in range(120):
+-        current_date = start_date + dt.timedelta(days=day_offset)
+-        num_sales_today = random.randint(2, 8)
+-        # Introduce a mild upward trend plus weekly seasonality.
+-        trend_multiplier = 1 + (day_offset / 120) * 0.4
+-        weekday_multiplier = 1.3 if current_date.weekday() in (4, 5) else 1.0
+-        for _ in range(num_sales_today):
+-            product = random.choice(products)
+-            customer = random.choice(customers)
+-            qty = max(1, int(random.gauss(3, 2) * trend_multiplier * weekday_multiplier))
+-            sale = models.Sale(
+-                customer_id=customer.id,
+-                product_id=product.id,
+-                quantity=qty,
+-                unit_price=product.price,
+-                total_amount=qty * product.price,
+-                sale_date=current_date.replace(hour=random.randint(9, 20), minute=random.randint(0, 59)),
+-                source="seed",
+-            )
+-            db.add(sale)
++    # Seed Users for B1
++    for full_name, email, password, role_name in DEMO_USERS_BUSINESS_1:
++        db.add(models.User(
++            full_name=full_name, email=email, 
++            hashed_password=hash_password(password), role_id=db_roles[role_name].id,
++            business_id=b1.id
++        ))
++        
++    # Seed Users for B2
++    for full_name, email, password, role_name in DEMO_USERS_BUSINESS_2:
++        db.add(models.User(
++            full_name=full_name, email=email, 
++            hashed_password=hash_password(password), role_id=db_roles[role_name].id,
++            business_id=b2.id
++        ))
++        
++    # Admin
++    db.add(models.User(
++        full_name="System Admin", email="admin@marketmind.ai", 
++        hashed_password=hash_password("Admin@123"), role_id=db_roles["admin"].id,
++        business_id=b1.id
++    ))
++    db.flush()
+ 
+-    # Inject a handful of clear outlier transactions for anomaly detection to catch.
+-    for _ in range(4):
+-        product = random.choice(products)
+-        customer = random.choice(customers)
+-        sale = models.Sale(
+-            customer_id=customer.id,
+-            product_id=product.id,
+-            quantity=random.randint(80, 150),
+-            unit_price=product.price,
+-            total_amount=random.randint(80, 150) * product.price,
+-            sale_date=start_date + dt.timedelta(days=random.randint(0, 119), hours=random.choice([2, 3, 4])),
+-            source="seed",
+-        )
+-        db.add(sale)
++    # B1 DATA
++    cat_b1 = models.Category(category_name="Grocery", business_id=b1.id)
++    db.add(cat_b1)
++    db.flush()
++    
++    sup_b1 = models.Supplier(supplier_name="Fresh Foods", business_id=b1.id)
++    db.add(sup_b1)
++    db.flush()
++    
++    prod_b1 = models.Product(name="Organic Rice", category_id=cat_b1.id, supplier_id=sup_b1.id, selling_price=50.0, business_id=b1.id)
++    db.add(prod_b1)
++    db.flush()
++    
++    db.add(models.Inventory(product_id=prod_b1.id, quantity_available=100, reorder_level=20))
++    
++    cust_b1 = models.Customer(full_name="Ramesh Kumar", business_id=b1.id)
++    db.add(cust_b1)
++    db.flush()
++    
++    sale_b1 = models.Sale(business_id=b1.id, customer_id=cust_b1.id, total_amount=100.0)
++    db.add(sale_b1)
++    db.flush()
++    db.add(models.SaleItem(sale_id=sale_b1.id, product_id=prod_b1.id, quantity=2, unit_price=50.0, total=100.0))
+ 
+-    for i in range(15):
+-        customer = random.choice(customers)
+-        status = random.choice(["pending", "paid", "paid", "overdue"])
+-        due = dt.datetime.utcnow() + dt.timedelta(days=random.randint(-10, 20))
+-        db.add(
+-            models.Invoice(
+-                customer_id=customer.id,
+-                invoice_number=f"INV-SEED-{i:04d}",
+-                amount=round(random.uniform(500, 8000), 2),
+-                status=status,
+-                due_date=due,
+-            )
+-        )
++    # B2 DATA
++    cat_b2 = models.Category(category_name="Electronics", business_id=b2.id)
++    db.add(cat_b2)
++    db.flush()
++    
++    sup_b2 = models.Supplier(supplier_name="Tech Parts Inc", business_id=b2.id)
++    db.add(sup_b2)
++    db.flush()
++    
++    prod_b2 = models.Product(name="USB-C Cable", category_id=cat_b2.id, supplier_id=sup_b2.id, selling_price=15.0, business_id=b2.id)
++    db.add(prod_b2)
++    db.flush()
++    
++    db.add(models.Inventory(product_id=prod_b2.id, quantity_available=500, reorder_level=50))
++    
++    cust_b2 = models.Customer(full_name="Alice Smith", business_id=b2.id)
++    db.add(cust_b2)
++    db.flush()
++    
++    sale_b2 = models.Sale(business_id=b2.id, customer_id=cust_b2.id, total_amount=30.0)
++    db.add(sale_b2)
++    db.flush()
++    db.add(models.SaleItem(sale_id=sale_b2.id, product_id=prod_b2.id, quantity=2, unit_price=15.0, total=30.0))
+ 
+     db.commit()
+diff --git a/backend/requirements.txt b/backend/requirements.txt
+index 9312c38..a9ee4db 100644
+--- a/backend/requirements.txt
++++ b/backend/requirements.txt
+@@ -1,6 +1,7 @@
+ fastapi==0.115.0
+ uvicorn[standard]==0.30.6
+ sqlalchemy==2.0.35
++alembic==1.13.2
+ pydantic==2.9.2
+ pydantic-settings==2.5.2
+ python-jose[cryptography]==3.3.0
+
+commit 9b9f6109e64b76ca0c8a11da1cfa244c682a606b
+Author: Pramodh Pillitla <pramodhpillitla@gmail.com>
+Date:   Thu Aug 6 23:29:01 2026 +0530
+
+    refactor: remove SQLite dependency, require PostgreSQL via DATABASE_URL
+    
+    - Remove SQLite fallback and check_same_thread workaround from database.py
+    
+    - Require DATABASE_URL env var with clear error message if missing
+    
+    - Add dotenv loading so .env file is read before env var access
+    
+    - Remove *.db glob from .gitignore (no longer needed)
+    
+    - Delete local marketmind.db SQLite database file
+
+diff --git a/backend/.gitignore b/backend/.gitignore
+index f3af7c6..448aa36 100644
+--- a/backend/.gitignore
++++ b/backend/.gitignore
+@@ -1,6 +1,5 @@
+ __pycache__/
+ *.pyc
+-*.db
+ .env
+ venv/
+ .venv/
+diff --git a/backend/app/database.py b/backend/app/database.py
+index 7c29491..227c587 100644
+--- a/backend/app/database.py
++++ b/backend/app/database.py
+@@ -1,13 +1,20 @@
+ import os
++from dotenv import load_dotenv
+ from sqlalchemy import create_engine
+ from sqlalchemy.orm import sessionmaker, declarative_base
+ 
+-# Defaults to a local SQLite file so the project runs with zero external setup.
+-# Set DATABASE_URL=postgresql://user:pass@host:5432/dbname to use PostgreSQL instead.
+-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./marketmind.db")
++load_dotenv()
+ 
+-connect_args = {"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {}
+-engine = create_engine(DATABASE_URL, connect_args=connect_args)
++# DATABASE_URL must be set in the environment (e.g. PostgreSQL).
++DATABASE_URL = os.getenv("DATABASE_URL")
++if not DATABASE_URL:
++    raise RuntimeError(
++        "DATABASE_URL environment variable is not set. "
++        "Please set it to a valid PostgreSQL connection string, e.g.: "
++        "DATABASE_URL=postgresql://user:pass@host:5432/dbname"
++    )
++
++engine = create_engine(DATABASE_URL)
+ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+ Base = declarative_base()
+ 
+
+commit b278f0069bf4a84cf7de7255fb670cf93e723b4e
+Merge: dcbe173 02893f2
+Author: Pramodh Pillitla <pramodhpillitla@gmail.com>
+Date:   Sun Aug 2 17:15:21 2026 +0530
+
+    Merge remote-tracking branch 'origin/Pallavi-D-R' into pre-dev
+
+commit 804de0b179538c59f8de87de8f38b327424535cd
+Author: Pramodh Pillitla <pramodhpillitla@gmail.com>
+Date:   Sat Aug 1 00:23:12 2026 +0530
+
+    feat: implement transaction management and inventory APIs
+    
+    - feat(backend): create inventory router with RBAC-protected CRUD endpoints for products
+    
+    - feat(backend): create sales router to handle manual POS transactions and batch CSV data uploads
+    
+    - feat(backend): implement business logic to automatically decrement product stock and generate invoices upon successful sales
+    
+    - feat(backend): register new sales and inventory routers in the main FastAPI app
+
+diff --git a/backend/app/main.py b/backend/app/main.py
+index 3184215..3883e46 100644
+--- a/backend/app/main.py
++++ b/backend/app/main.py
+@@ -1,7 +1,7 @@
+ from fastapi import FastAPI
+ from fastapi.middleware.cors import CORSMiddleware
+ from app.database import Base, engine
+-from app.routers import auth, users, analytics
++from app.routers import auth, users, analytics, inventory, sales
+ import app.models
+ 
+ app.models.Base.metadata.create_all(bind=engine)
+@@ -23,6 +23,8 @@ app.add_middleware(
+ app.include_router(auth.router)
+ app.include_router(users.router)
+ app.include_router(analytics.router)
++app.include_router(inventory.router)
++app.include_router(sales.router)
+ @app.get("/")
+ def root():
+     return {"message": "MarketMind AI API is running", "docs": "/docs"}
+diff --git a/backend/app/routers/inventory.py b/backend/app/routers/inventory.py
+new file mode 100644
+index 0000000..711756a
+--- /dev/null
++++ b/backend/app/routers/inventory.py
+@@ -0,0 +1,83 @@
++from fastapi import APIRouter, Depends, HTTPException, status
++from sqlalchemy.orm import Session
++from typing import List
++
++from app import schemas, models
++from app.database import get_db
++from app.deps import get_current_user, require_roles
++
++router = APIRouter(prefix="/api/inventory", tags=["inventory"])
++
++# Access control: Store Managers and Admins can modify inventory.
++modify_roles = [models.RoleEnum.store_manager.value, models.RoleEnum.admin.value]
++
++@router.get("/products", response_model=List[schemas.ProductOut])
++def get_products(
++    skip: int = 0, 
++    limit: int = 100, 
++    db: Session = Depends(get_db),
++    current_user: models.User = Depends(get_current_user) # Everyone authenticated can view products
++):
++    """Get list of products."""
++    products = db.query(models.Product).offset(skip).limit(limit).all()
++    return products
++
++@router.get("/products/{product_id}", response_model=schemas.ProductOut)
++def get_product(
++    product_id: int, 
++    db: Session = Depends(get_db),
++    current_user: models.User = Depends(get_current_user)
++):
++    """Get a specific product by ID."""
++    product = db.query(models.Product).filter(models.Product.id == product_id).first()
++    if not product:
++        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Product not found")
++    return product
++
++@router.post("/products", response_model=schemas.ProductOut, status_code=status.HTTP_201_CREATED)
++def create_product(
++    product: schemas.ProductCreate, 
++    db: Session = Depends(get_db),
++    current_user: models.User = Depends(require_roles(*modify_roles))
++):
++    """Create a new product (Admin & Store Manager only)."""
++    db_product = models.Product(**product.model_dump())
++    db.add(db_product)
++    db.commit()
++    db.refresh(db_product)
++    return db_product
++
++@router.put("/products/{product_id}", response_model=schemas.ProductOut)
++def update_product(
++    product_id: int, 
++    product_update: schemas.ProductCreate, 
++    db: Session = Depends(get_db),
++    current_user: models.User = Depends(require_roles(*modify_roles))
++):
++    """Update a product (Admin & Store Manager only)."""
++    db_product = db.query(models.Product).filter(models.Product.id == product_id).first()
++    if not db_product:
++        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Product not found")
++    
++    update_data = product_update.model_dump(exclude_unset=True)
++    for key, value in update_data.items():
++        setattr(db_product, key, value)
++        
++    db.commit()
++    db.refresh(db_product)
++    return db_product
++
++@router.delete("/products/{product_id}", status_code=status.HTTP_204_NO_CONTENT)
++def delete_product(
++    product_id: int, 
++    db: Session = Depends(get_db),
++    current_user: models.User = Depends(require_roles(*modify_roles))
++):
++    """Delete a product (Admin & Store Manager only)."""
++    db_product = db.query(models.Product).filter(models.Product.id == product_id).first()
++    if not db_product:
++        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Product not found")
++    
++    db.delete(db_product)
++    db.commit()
++    return None
+diff --git a/backend/app/routers/sales.py b/backend/app/routers/sales.py
+new file mode 100644
+index 0000000..d2f23e2
+--- /dev/null
++++ b/backend/app/routers/sales.py
+@@ -0,0 +1,162 @@
++import csv
++import uuid
++from datetime import datetime
++from io import StringIO
++from typing import List
++
++from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
++from sqlalchemy.orm import Session
++
++from app import schemas, models
++from app.database import get_db
++from app.deps import get_current_user, require_roles
++
++router = APIRouter(prefix="/api/sales", tags=["sales"])
++
++create_roles = [
++    models.RoleEnum.sales_executive.value, 
++    models.RoleEnum.store_manager.value, 
++    models.RoleEnum.admin.value
++]
++
++def process_single_sale(db: Session, sale_data: schemas.SalesRecordCreate, user_id: int):
++    # 1. Check Product & Stock
++    product = db.query(models.Product).filter(models.Product.id == sale_data.product_id).first()
++    if not product:
++        raise HTTPException(status_code=404, detail=f"Product ID {sale_data.product_id} not found.")
++    
++    if product.stock_qty < sale_data.quantity:
++        raise HTTPException(
++            status_code=400, 
++            detail=f"Insufficient stock for product {product.name}. Available: {product.stock_qty}, Requested: {sale_data.quantity}"
++        )
++
++    # 2. Update Stock
++    product.stock_qty -= sale_data.quantity
++
++    # 3. Create Sales Record
++    total_amount = sale_data.quantity * sale_data.unit_price
++    db_sale = models.SalesRecord(
++        product_id=sale_data.product_id,
++        customer_id=sale_data.customer_id,
++        quantity=sale_data.quantity,
++        unit_price=sale_data.unit_price,
++        total_amount=total_amount,
++        sale_date=sale_data.sale_date or datetime.utcnow(),
++        created_by=user_id
++    )
++    db.add(db_sale)
++    db.flush() # flush to get db_sale.id
++
++    # 4. Generate Invoice
++    invoice_number = f"INV-{uuid.uuid4().hex[:8].upper()}"
++    db_invoice = models.Invoice(
++        invoice_number=invoice_number,
++        customer_id=sale_data.customer_id,
++        sales_record_id=db_sale.id,
++        amount=total_amount,
++        status="paid" # Default to paid for successful POS transaction
++    )
++    db.add(db_invoice)
++    
++    return db_sale
++
++@router.post("/transactions", response_model=schemas.SalesRecordOut, status_code=status.HTTP_201_CREATED)
++def create_transaction(
++    sale: schemas.SalesRecordCreate,
++    db: Session = Depends(get_db),
++    current_user: models.User = Depends(require_roles(*create_roles))
++):
++    """Create a manual sales transaction."""
++    try:
++        db_sale = process_single_sale(db, sale, current_user.id)
++        db.commit()
++        db.refresh(db_sale)
++        return db_sale
++    except HTTPException:
++        db.rollback()
++        raise
++    except Exception as e:
++        db.rollback()
++        raise HTTPException(status_code=500, detail=str(e))
++
++@router.get("/transactions", response_model=List[schemas.SalesRecordOut])
++def get_transactions(
++    skip: int = 0, 
++    limit: int = 100, 
++    db: Session = Depends(get_db),
++    current_user: models.User = Depends(get_current_user)
++):
++    """List all sales transactions."""
++    # Sales Execs might only see their own, but for milestone 1 let's keep it simple or check role
++    if current_user.role == models.RoleEnum.sales_executive:
++        sales = db.query(models.SalesRecord).filter(models.SalesRecord.created_by == current_user.id).offset(skip).limit(limit).all()
++    else:
++        sales = db.query(models.SalesRecord).offset(skip).limit(limit).all()
++    return sales
++
++@router.post("/upload")
++async def upload_sales_csv(
++    file: UploadFile = File(...),
++    db: Session = Depends(get_db),
++    current_user: models.User = Depends(require_roles(*create_roles))
++):
++    """
++    Upload a CSV file of sales transactions.
++    Expected CSV columns: product_id, customer_id, quantity, unit_price, sale_date
++    """
++    if not file.filename.endswith('.csv'):
++        raise HTTPException(status_code=400, detail="File must be a CSV")
++
++    content = await file.read()
++    decoded_content = content.decode('utf-8')
++    csv_reader = csv.DictReader(StringIO(decoded_content))
++    
++    expected_fields = ["product_id", "customer_id", "quantity", "unit_price"]
++    if not all(field in csv_reader.fieldnames for field in expected_fields):
++        raise HTTPException(
++            status_code=400, 
++            detail=f"CSV is missing required columns. Expected at least: {', '.join(expected_fields)}"
++        )
++
++    successful_records = 0
++    errors = []
++
++    for row_num, row in enumerate(csv_reader, start=2): # start=2 to account for header
++        try:
++            # Parse row
++            product_id = int(row["product_id"])
++            customer_id = int(row["customer_id"]) if row.get("customer_id") else None
++            quantity = int(row["quantity"])
++            unit_price = float(row["unit_price"])
++            
++            sale_date = None
++            if row.get("sale_date"):
++                try:
++                    sale_date = datetime.fromisoformat(row["sale_date"].replace('Z', '+00:00'))
++                except ValueError:
++                    pass # fallback to None which sets to datetime.utcnow() in process_single_sale
++
++            sale_data = schemas.SalesRecordCreate(
++                product_id=product_id,
++                customer_id=customer_id,
++                quantity=quantity,
++                unit_price=unit_price,
++                sale_date=sale_date
++            )
++            
++            process_single_sale(db, sale_data, current_user.id)
++            successful_records += 1
++
++        except Exception as e:
++            errors.append(f"Row {row_num}: {str(e)}")
++
++    if successful_records > 0:
++        db.commit() # Commit all successful records in a transaction
++    else:
++        db.rollback() # If nothing succeeded, rollback just in case
++        
++    return {
++        "message": f"Processed {successful_records} sales records successfully.",
++        "errors": errors
++    }
+
+commit e76c2f51cb2ba6adda9d5dfb61af0ed8d7da0ed2
+Author: Pramodh Pillitla <pramodhpillitla@gmail.com>
+Date:   Fri Jul 31 11:16:59 2026 +0530
+
+    feat: integrate ML mock analytics APIs and polish dashboard UI
+    - feat(backend): create plug-and-play ML architecture with `inference.py` mock models
+    - feat(backend): add secure `/api/analytics/forecast` and `/api/analytics/churn` endpoints
+    - feat(frontend): connect React dashboard widgets to fetch live analytics data from backend
+    - refactor(auth): remove redundant role selection from login payload and validation
+    - fix(security): switch Swagger UI to use HTTPBearer for seamless JWT testing
+
+diff --git a/backend/app/deps.py b/backend/app/deps.py
+index a0c7b6a..b8ae727 100644
+--- a/backend/app/deps.py
++++ b/backend/app/deps.py
+@@ -1,15 +1,16 @@
+ from typing import List
+ from fastapi import Depends, HTTPException, status
+-from fastapi.security import OAuth2PasswordBearer
++from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+ from sqlalchemy.orm import Session
+ from app.database import get_db
+ from app.security import decode_access_token
+ from app import models
+ 
+-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
++security = HTTPBearer()
+ 
+ 
+-def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)) -> models.User:
++def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security), db: Session = Depends(get_db)) -> models.User:
++    token = credentials.credentials
+     credentials_exception = HTTPException(
+         status_code=status.HTTP_401_UNAUTHORIZED,
+         detail="Could not validate credentials",
+diff --git a/backend/app/main.py b/backend/app/main.py
+index 1c896da..3184215 100644
+--- a/backend/app/main.py
++++ b/backend/app/main.py
+@@ -1,7 +1,7 @@
+ from fastapi import FastAPI
+ from fastapi.middleware.cors import CORSMiddleware
+ from app.database import Base, engine
+-from app.routers import auth, users
++from app.routers import auth, users, analytics
+ import app.models
+ 
+ app.models.Base.metadata.create_all(bind=engine)
+@@ -22,6 +22,7 @@ app.add_middleware(
+ 
+ app.include_router(auth.router)
+ app.include_router(users.router)
++app.include_router(analytics.router)
+ @app.get("/")
+ def root():
+     return {"message": "MarketMind AI API is running", "docs": "/docs"}
+diff --git a/backend/app/ml/inference.py b/backend/app/ml/inference.py
+new file mode 100644
+index 0000000..f479a9f
+--- /dev/null
++++ b/backend/app/ml/inference.py
+@@ -0,0 +1,45 @@
++from datetime import datetime, timedelta
++from typing import List, Dict, Any
++
++# Mock functions for ML Inference
++# When real models are available, load them at app startup (e.g., using lifespan events)
++# and replace these dummy implementations with actual model.predict() calls.
++
++def predict_revenue_forecast() -> Dict[str, Any]:
++    """Mock revenue forecast."""
++    today = datetime.now()
++    history = [
++        {"date": (today - timedelta(days=i)).strftime("%Y-%m-%d"), "revenue": 1000 + (i * 50)} 
++        for i in range(14, 0, -1)
++    ]
++    forecast = [
++        {"date": (today + timedelta(days=i)).strftime("%Y-%m-%d"), "predicted_revenue": 1500 + (i * 100)} 
++        for i in range(1, 15)
++    ]
++    return {
++        "history": history,
++        "forecast": forecast,
++        "metrics": {"mape": 0.05, "confidence_interval": 0.95}
++    }
++
++def predict_customer_churn() -> Dict[str, Any]:
++    """Mock customer churn predictions."""
++    results = [
++        {"customer_id": 101, "customer_name": "Alice Smith", "churn_probability": 0.85, "retention_risk": "High"},
++        {"customer_id": 102, "customer_name": "Bob Johnson", "churn_probability": 0.65, "retention_risk": "Medium"},
++        {"customer_id": 103, "customer_name": "Charlie Brown", "churn_probability": 0.15, "retention_risk": "Low"},
++        {"customer_id": 104, "customer_name": "Diana Prince", "churn_probability": 0.92, "retention_risk": "High"},
++        {"customer_id": 105, "customer_name": "Evan Wright", "churn_probability": 0.55, "retention_risk": "Medium"},
++        {"customer_id": 106, "customer_name": "Fiona Gallagher", "churn_probability": 0.78, "retention_risk": "High"},
++        {"customer_id": 107, "customer_name": "George Miller", "churn_probability": 0.88, "retention_risk": "High"},
++        {"customer_id": 108, "customer_name": "Hannah Abbott", "churn_probability": 0.72, "retention_risk": "High"},
++        {"customer_id": 109, "customer_name": "Ian Somerhalder", "churn_probability": 0.95, "retention_risk": "High"},
++        {"customer_id": 110, "customer_name": "Julia Roberts", "churn_probability": 0.81, "retention_risk": "High"},
++        {"customer_id": 111, "customer_name": "Kevin Hart", "churn_probability": 0.79, "retention_risk": "High"},
++    ]
++    # Filter for high risk (should return exactly 8 to match previous UI mock state temporarily)
++    high_risk = [r for r in results if r["churn_probability"] > 0.7]
++    return {
++        "results": high_risk,
++        "metrics": {"total_high_risk": len(high_risk), "accuracy": 0.89}
++    }
+diff --git a/backend/app/routers/analytics.py b/backend/app/routers/analytics.py
+new file mode 100644
+index 0000000..81b62f9
+--- /dev/null
++++ b/backend/app/routers/analytics.py
+@@ -0,0 +1,23 @@
++from fastapi import APIRouter, Depends
++from sqlalchemy.orm import Session
++from app.database import get_db
++from app import schemas, models
++from app.deps import get_current_user, require_roles
++from app.ml import inference
++
++router = APIRouter(prefix="/api/analytics", tags=["analytics"])
++
++@router.get("/forecast", response_model=schemas.ForecastResponse)
++def get_forecast(
++    current_user: models.User = Depends(require_roles(models.RoleEnum.business_owner.value, models.RoleEnum.admin.value))
++):
++    """Get revenue forecast (currently mock ML inference)."""
++    return inference.predict_revenue_forecast()
++
++
++@router.get("/churn", response_model=schemas.ChurnResponse)
++def get_churn_predictions(
++    current_user: models.User = Depends(require_roles(models.RoleEnum.business_owner.value, models.RoleEnum.admin.value))
++):
++    """Get customer churn predictions (currently mock ML inference)."""
++    return inference.predict_customer_churn()
+
+commit 774fd55840fa80f6ac19457225fe79efc686fd02
+Author: Pramodh Pillitla <pramodhpillitla@gmail.com>
+Date:   Thu Jul 30 18:24:51 2026 +0530
+
+    feat: implement authentication backend routes, schemas, and dashboard frontend UI
+
+diff --git a/backend/app/routers/auth.py b/backend/app/routers/auth.py
+index 971b282..a45c03a 100644
+--- a/backend/app/routers/auth.py
++++ b/backend/app/routers/auth.py
+@@ -50,12 +50,6 @@ def login(payload: schemas.LoginRequest, db: Session = Depends(get_db)):
+             detail="Incorrect email or password"
+         )
+ 
+-    if user.role != payload.role:
+-        raise HTTPException(
+-            status_code=status.HTTP_401_UNAUTHORIZED,
+-            detail="Incorrect role selected"
+-        )
+-
+     token = create_access_token({"sub": user.username, "role": user.role.value})
+     return schemas.AuthResponse(
+         token=token,
+diff --git a/backend/app/schemas.py b/backend/app/schemas.py
+index 364851c..8d373c0 100644
+--- a/backend/app/schemas.py
++++ b/backend/app/schemas.py
+@@ -22,7 +22,6 @@ class RegisterRequest(BaseModel):
+ class LoginRequest(BaseModel):
+     email: EmailStr
+     password: str
+-    role: RoleEnum
+ 
+ 
+ class AuthUser(BaseModel):
