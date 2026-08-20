@@ -1,70 +1,287 @@
-import re
+import os
+import random
+import smtplib
+import datetime as dt
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+import datetime as dt
 from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import BaseModel, EmailStr
 from sqlalchemy.orm import Session
-from app.database import get_db
-from app import models, schemas
-from app.security import verify_password, create_access_token, hash_password
-from app.deps import get_current_user
+from sqlalchemy.orm import Session, joinedload
 
-router = APIRouter(prefix="/api/auth", tags=["auth"])
+from .. import models, schemas
+from ..database import get_db
+from ..core.security import (
+    hash_password,
+    verify_password,
+    create_access_token,
+)
+from ..deps import get_current_user
 
-
-def _generate_username(db: Session, name: str, email: str) -> str:
-    """Derive a unique username from the email's local part (frontend only
-    collects name/email/password, not a separate username)."""
-    base = re.sub(r"[^a-zA-Z0-9]", "", email.split("@")[0].lower()) or "user"
-    candidate = base
-    suffix = 1
-    while db.query(models.User).filter(models.User.username == candidate).first():
-        suffix += 1
-        candidate = f"{base}{suffix}"
-    return candidate
+# --- Correct Prefix with /api/auth ---
+router = APIRouter(
+    prefix="/api/auth",
+    tags=["Authentication"],
+)
 
 
-@router.post("/register", response_model=schemas.AuthUser, status_code=status.HTTP_201_CREATED)
-def register(payload: schemas.RegisterRequest, db: Session = Depends(get_db)):
-    existing = db.query(models.User).filter(models.User.email == payload.email).first()
-    if existing:
-        raise HTTPException(status_code=400, detail="An account with this email already exists")
+def send_email_otp(target_email: str, otp_code: str):
+    """Utility function to deliver the 6-digit OTP code to the user's email inbox."""
+    # Fetch environment variables dynamically inside the function
+    smtp_server = os.getenv("SMTP_SERVER", "smtp.gmail.com")
+    smtp_port = int(os.getenv("SMTP_PORT", 587))
+    sender_email = os.getenv("SENDER_EMAIL")
+    sender_password = os.getenv("SENDER_PASSWORD")
 
-    username = _generate_username(db, payload.name, payload.email)
-    user = models.User(
-        username=username,
-        email=payload.email,
-        full_name=payload.name,
-        hashed_password=hash_password(payload.password),
-        role=payload.role,  # default role; an admin can promote via /api/users
+    if not sender_email or not sender_password:
+        raise ValueError("SENDER_EMAIL or SENDER_PASSWORD environment variable is missing.")
+
+    message = MIMEMultipart("alternative")
+    message["Subject"] = "MarketMind AI - Your Password Reset OTP"
+    message["From"] = f"MarketMind AI <{sender_email}>"
+    message["To"] = target_email
+
+    body_html = f"""
+    <html>
+      <body style="font-family: Arial, sans-serif; color: #333; line-height: 1.6;">
+        <div style="max-width: 500px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 12px; padding: 24px;">
+          <h2 style="color: #2e2b8f; margin-top: 0;">Password Reset Code</h2>
+          <p>You requested a password reset for your MarketMind AI account. Use the OTP code below to set a new password:</p>
+          <div style="background-color: #f4f4f9; text-align: center; font-size: 28px; font-weight: bold; letter-spacing: 4px; padding: 12px; margin: 20px 0; border-radius: 8px; color: #2e2b8f;">
+            {otp_code}
+          </div>
+          <p style="font-size: 12px; color: #777;">This code is valid for 15 minutes. If you did not request this, please ignore this email.</p>
+        </div>
+      </body>
+    </html>
+    """
+
+    message.attach(MIMEText(body_html, "html"))
+
+    # Connect to Google SMTP server and send email
+    with smtplib.SMTP(smtp_server, smtp_port) as server:
+        server.starttls()
+        server.login(sender_email, sender_password)
+        server.sendmail(sender_email, target_email, message.as_string())
+
+
+# --- Request Schemas ---
+class ProfileUpdateRequest(BaseModel):
+    full_name: str
+    email: EmailStr
+
+
+class ChangePasswordRequest(BaseModel):
+    current_password: str
+    new_password: str
+
+
+class SendOTPRequest(BaseModel):
+    email: EmailStr
+
+
+class ResetPasswordOTPRequest(BaseModel):
+    email: EmailStr
+    otp: str
+    new_password: str
+
+
+# --- Core Auth Routes ---
+
+@router.post(
+    "/register",
+    response_model=schemas.UserOut,
+    status_code=status.HTTP_201_CREATED,
+)
+def register(
+    payload: schemas.RegisterRequest,
+    db: Session = Depends(get_db),
+):
+    existing = (
+        db.query(models.User)
+        .filter(models.User.email == payload.email)
+        .first()
     )
+
+    if existing:
+        raise HTTPException(
+            status_code=400,
+            detail="Email address is already registered",
+        )
+        
+    # Public registration always creates a new business and owner
+    role = db.query(models.Role).filter(models.Role.role_name == "business_owner").first()
+    if not role:
+        raise HTTPException(
+            status_code=500,
+            detail="Role 'business_owner' not found in database.",
+        )
+
+    business = models.Business(company_name=payload.company_name)
+    db.add(business)
+    db.flush()
+
+    user = models.User(
+        full_name=payload.full_name,
+        email=payload.email,
+        hashed_password=hash_password(payload.password),
+        role_id=role.id,
+        business_id=business.id,
+    )
+
     db.add(user)
     db.commit()
     db.refresh(user)
-    return schemas.AuthUser(id=user.id, name=user.full_name, email=user.email, role=user.role)
+    
+    # Eager load role and business for response
+    user = db.query(models.User).options(joinedload(models.User.role), joinedload(models.User.business)).filter(models.User.id == user.id).first()
 
+    return user
 
-@router.post("/login", response_model=schemas.AuthResponse)
-def login(payload: schemas.LoginRequest, db: Session = Depends(get_db)):
-    user = db.query(models.User).filter(models.User.email == payload.email).first()
+@router.post("/login", response_model=schemas.Token)
+def login(
+    payload: schemas.LoginRequest,
+    db: Session = Depends(get_db),
+):
+    user = (
+        db.query(models.User)
+        .options(joinedload(models.User.role), joinedload(models.User.business))
+        .filter(models.User.email == payload.email)
+        .first()
+    )
+
     if not user or not verify_password(payload.password, user.hashed_password):
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect email or password"
+            status_code=401,
+            detail="Incorrect email or password",
         )
+        
+    # Update last_login
+    user.last_login = dt.datetime.utcnow()
+    db.commit()
 
-    if user.role != payload.role:
+    role_str = user.role.value if hasattr(user.role, "value") else str(user.role)
+
+    token = create_access_token(
+        {
+            "sub": str(user.id),
+            "role": role_str,
+            "role": user.role.role_name,
+        }
+    )
+
+    return {
+        "access_token": token,
+        "token_type": "bearer",
+        "user": user,
+    }
+
+@router.get("/me", response_model=schemas.UserOut)
+def me(
+    current_user: models.User = Depends(get_current_user),
+):
+    return current_user
+
+
+@router.put("/profile", response_model=schemas.UserOut)
+def update_profile(
+    payload: ProfileUpdateRequest,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    existing = (
+        db.query(models.User)
+        .filter(models.User.email == payload.email, models.User.id != current_user.id)
+        .first()
+    )
+    if existing:
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect role selected"
+            status_code=400,
+            detail="Email address is already in use",
         )
 
-    token = create_access_token({"sub": user.username, "role": user.role.value})
-    return schemas.AuthResponse(
-        token=token,
-        user=schemas.AuthUser(id=user.id, name=user.full_name, email=user.email, role=user.role),
-    )
+    current_user.full_name = payload.full_name
+    current_user.email = payload.email
+
+    db.commit()
+    db.refresh(current_user)
+    return current_user
 
 
-@router.get("/me", response_model=schemas.AuthUser)
-def me(current_user: models.User = Depends(get_current_user)):
-    return schemas.AuthUser(
-        id=current_user.id, name=current_user.full_name, email=current_user.email, role=current_user.role
-    )
+@router.put("/change-password")
+def change_password(
+    payload: ChangePasswordRequest,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    if not verify_password(payload.current_password, current_user.hashed_password):
+        raise HTTPException(
+            status_code=400,
+            detail="Incorrect current password",
+        )
+
+    current_user.hashed_password = hash_password(payload.new_password)
+    db.commit()
+
+    return {"message": "Password updated successfully"}
+
+
+# --- OTP Password Reset Routes ---
+
+@router.post("/send-otp")
+def send_otp(
+    payload: SendOTPRequest,
+    db: Session = Depends(get_db),
+):
+    user = db.query(models.User).filter(models.User.email == payload.email).first()
+
+    if not user:
+        return {"message": "If an account with that email exists, an OTP code has been sent."}
+
+    # Generate 6-digit OTP
+    otp = str(random.randint(100000, 999999))
+
+    # Save OTP & set 15-minute expiry
+    user.reset_otp = otp
+    user.reset_otp_expiry = dt.datetime.utcnow() + dt.timedelta(minutes=15)
+    db.commit()
+
+    # Send Real Email via SMTP
+    try:
+        send_email_otp(payload.email, otp)
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to send OTP email: {str(e)}"
+        )
+
+    return {"message": f"OTP code sent to {payload.email}."}
+
+
+@router.post("/reset-password-otp")
+def reset_password_otp(
+    payload: ResetPasswordOTPRequest,
+    db: Session = Depends(get_db),
+):
+    user = db.query(models.User).filter(models.User.email == payload.email).first()
+
+    if not user or not user.reset_otp or user.reset_otp != payload.otp:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid OTP code or email.",
+        )
+
+    if user.reset_otp_expiry < dt.datetime.utcnow():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="OTP code has expired. Please request a new code.",
+        )
+
+    # Update password and clear reset OTP fields
+    user.hashed_password = hash_password(payload.new_password)
+    user.reset_otp = None
+    user.reset_otp_expiry = None
+    db.commit()
+
+    return {"message": "Password reset successfully."}
