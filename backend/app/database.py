@@ -1,12 +1,21 @@
+import os
+from dotenv import load_dotenv
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
-from app.config import settings
 
-connect_args = {"check_same_thread": False} if settings.database_url.startswith("sqlite") else {}
+load_dotenv()
 
-engine = create_engine(settings.database_url, connect_args=connect_args)
+# DATABASE_URL must be set in the environment (e.g. PostgreSQL).
+DATABASE_URL = os.getenv("DATABASE_URL")
+if not DATABASE_URL:
+    raise RuntimeError(
+        "DATABASE_URL environment variable is not set. "
+        "Please set it to a valid PostgreSQL connection string, e.g.: "
+        "DATABASE_URL=postgresql://user:pass@host:5432/dbname"
+    )
+
+engine = create_engine(DATABASE_URL, pool_pre_ping=True, pool_recycle=300)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-
 Base = declarative_base()
 
 

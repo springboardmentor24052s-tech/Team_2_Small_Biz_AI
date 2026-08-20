@@ -1,114 +1,109 @@
-import {
-  createContext,
-  useEffect,
-  useState,
-} from "react";
+import { createContext, useContext, useState, useCallback } from "react";
+import api from "../services/api";
 
-const AuthContext = createContext();
+const AuthContext = createContext(null);
 
-export function AuthProvider({
-  children,
-}) {
-  const [user, setUser] =
-    useState(null);
+export function AuthProvider({ children }) {
+  const [user, setUserState] = useState(() => {
+    const raw = localStorage.getItem("marketmind_user");
+    return raw ? JSON.parse(raw) : null;
+  });
 
-  const [token, setToken] =
-    useState(null);
-
-  // Load saved authentication
-  // data when application starts
-  useEffect(() => {
-    const savedUser =
-      localStorage.getItem("user");
-
-    const savedToken =
-      localStorage.getItem("token");
-
-    if (
-      savedUser &&
-      savedToken
-    ) {
-      try {
-        setUser(
-          JSON.parse(savedUser)
-        );
-
-        setToken(savedToken);
-
-      } catch (error) {
-        console.error(
-          "Error loading authentication data:",
-          error
-        );
-
-        localStorage.removeItem(
-          "user"
-        );
-
-        localStorage.removeItem(
-          "token"
-        );
+  // Wrap setUser so any update (e.g. from Settings after a profile edit)
+  // also persists to localStorage, keeping state and storage in sync.
+  const setUser = useCallback((updater) => {
+    setUserState((prev) => {
+      const next = typeof updater === "function" ? updater(prev) : updater;
+      if (next) {
+        localStorage.setItem("marketmind_user", JSON.stringify(next));
+      } else {
+        localStorage.removeItem("marketmind_user");
       }
+      return next;
+    });
+  }, []);
+
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  const login = useCallback(async (email, password) => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const res = await api.post("/auth/login", {
+        email,
+        password,
+      });
+
+      localStorage.setItem("marketmind_token", res.data.access_token);
+      localStorage.setItem(
+        "marketmind_user",
+        JSON.stringify(res.data.user)
+      );
+
+      setUser(res.data.user);
+
+      return true;
+    } catch (err) {
+      setError(err.response?.data?.detail || "Login failed.");
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  }, [setUser]);
+
+  const register = useCallback(async (payload) => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      await api.post("/auth/register", payload);
+      return true;
+    } catch (err) {
+      setError(err.response?.data?.detail || "Registration failed.");
+      return false;
+    } finally {
+      setLoading(false);
     }
   }, []);
 
-  // Login
-  // Receives response from FastAPI
-  const login = (authData) => {
-
-    const userData =
-      authData.user;
-
-    const accessToken =
-      authData.token;
-
-    setUser(userData);
-
-    setToken(accessToken);
-
-    localStorage.setItem(
-      "user",
-      JSON.stringify(userData)
-    );
-
-    localStorage.setItem(
-      "token",
-      accessToken
-    );
-  };
-
-  // Logout
-  const logout = () => {
-
+  const logout = useCallback(() => {
+    // Clear tokens and stored user data
+    localStorage.removeItem("marketmind_token");
+    localStorage.removeItem("marketmind_user");
+    sessionStorage.removeItem("marketmind_token");
+    sessionStorage.removeItem("marketmind_user");
     setUser(null);
 
-    setToken(null);
+    // Hard redirect to landing page to completely clear application state
+    window.location.href = "/";
+  }, [setUser]);
 
-    localStorage.removeItem(
-      "user"
-    );
-
-    localStorage.removeItem(
-      "token"
-    );
-  };
-
-  const value = {
-    user,
-    token,
-    login,
-    logout,
-    isAuthenticated:
-      !!user && !!token,
-  };
+  const hasRole = useCallback(
+    (...roles) => !!user && roles.includes(user.role),
+    [user]
+  );
 
   return (
     <AuthContext.Provider
-      value={value}
+      value={{
+        user,
+        setUser,
+        login,
+        register,
+        logout,
+        loading,
+        error,
+        hasRole,
+      }}
     >
       {children}
     </AuthContext.Provider>
   );
 }
 
-export default AuthContext;
+// eslint-disable-next-line react-refresh/only-export-components
+export function useAuth() {
+  return useContext(AuthContext);
+}
