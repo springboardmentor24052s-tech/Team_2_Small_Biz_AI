@@ -42,16 +42,21 @@ export function AuthProvider({ children }) {
     return raw ? JSON.parse(raw) : null;
   });
 
-  // Wrap setUser so any update (e.g. from Settings after a profile edit)
-  // also persists to localStorage, keeping state and storage in sync.
+  // Keep React state and localStorage synchronized
   const setUser = useCallback((updater) => {
     setUserState((prev) => {
-      const next = typeof updater === "function" ? updater(prev) : updater;
+      const next =
+        typeof updater === "function" ? updater(prev) : updater;
+
       if (next) {
-        localStorage.setItem("marketmind_user", JSON.stringify(next));
+        localStorage.setItem(
+          "marketmind_user",
+          JSON.stringify(next)
+        );
       } else {
         localStorage.removeItem("marketmind_user");
       }
+
       return next;
     });
   }, []);
@@ -69,23 +74,23 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  const login = useCallback(async (email, password) => {
-    setLoading(true);
-    setError(null);
+  const login = useCallback(
+    async (email, password) => {
+      setLoading(true);
+      setError(null);
 
-    try {
-      const res = await api.post("/auth/login", {
-        email,
-        password,
-      });
+      try {
+        const res = await api.post("/auth/login", {
+          email,
+          password,
+        });
 
-      localStorage.setItem("marketmind_token", res.data.access_token);
-      localStorage.setItem(
-        "marketmind_user",
-        JSON.stringify(res.data.user)
-      );
+        localStorage.setItem(
+          "marketmind_token",
+          res.data.access_token
+        );
 
-      setUser(res.data.user);
+        setUser(res.data.user);
 
       // Prime the cache before navigating to the dashboard.
       prefetchCore(res.data.user.role);
@@ -107,7 +112,9 @@ export function AuthProvider({ children }) {
       await api.post("/auth/register", payload);
       return true;
     } catch (err) {
-      setError(err.response?.data?.detail || "Registration failed.");
+      setError(
+        err.response?.data?.detail || "Registration failed."
+      );
       return false;
     } finally {
       setLoading(false);

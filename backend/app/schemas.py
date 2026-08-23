@@ -115,7 +115,7 @@ class ProductCreate(BaseModel):
     description: Optional[str] = None
     image_url: Optional[str] = None
     is_active: bool = True
-    
+
     # Optional fields for initial inventory
     stock_quantity: int = 0
     reorder_level: int = 10

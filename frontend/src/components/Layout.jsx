@@ -86,10 +86,16 @@ function NotificationBell() {
 
   useEffect(() => {
     const handleClick = (e) => {
-      if (ref.current && !ref.current.contains(e.target)) setOpen(false)
+      if (ref.current && !ref.current.contains(e.target)) {
+        setOpen(false)
+      }
     }
+
     document.addEventListener('mousedown', handleClick)
-    return () => document.removeEventListener('mousedown', handleClick)
+
+    return () => {
+      document.removeEventListener('mousedown', handleClick)
+    }
   }, [])
 
   const toggleDropdown = async () => {
@@ -177,10 +183,16 @@ function ProfileMenu({ user, onLogout }) {
 
   useEffect(() => {
     const handleClick = (e) => {
-      if (ref.current && !ref.current.contains(e.target)) setOpen(false)
+      if (ref.current && !ref.current.contains(e.target)) {
+        setOpen(false)
+      }
     }
+
     document.addEventListener('mousedown', handleClick)
-    return () => document.removeEventListener('mousedown', handleClick)
+
+    return () => {
+      document.removeEventListener('mousedown', handleClick)
+    }
   }, [])
 
   return (
@@ -189,6 +201,7 @@ function ProfileMenu({ user, onLogout }) {
         <Avatar user={user} size="sm" />
         <ChevronDown size={16} className="text-slate-400 dark:text-slate-500" />
       </button>
+
       {open && (
         <div className="absolute right-0 mt-2 w-52 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg shadow-lg py-1 z-50">
           <div className="px-4 py-2 border-b border-slate-100 dark:border-slate-800">
@@ -227,12 +240,14 @@ export default function Layout() {
   }
 
   return (
-    <div className="flex h-screen overflow-hidden bg-slate-50 dark:bg-slate-950 transition-colors duration-300">
-      {/* Sidebar with Dark Mode Theme Support */}
-      <aside className="w-64 bg-brand-900 dark:bg-slate-900 text-white flex flex-col shrink-0 h-screen border-r border-transparent dark:border-slate-800 transition-colors duration-300">
-        <div className="px-6 py-5 border-b border-white/10 dark:border-slate-800 shrink-0">
-          <h1 className="text-xl font-bold tracking-tight text-white">MarketMind AI</h1>
-          <p className="text-xs text-brand-100/70 dark:text-slate-400 mt-1">Sales Intelligence Platform</p>
+    <div className="flex h-screen bg-slate-50 dark:bg-slate-950">
+      {/* Sidebar */}
+      <aside className="hidden md:flex w-64 shrink-0 bg-slate-900 text-white flex-col">
+        <div className="px-6 py-5 border-b border-white/10">
+          <h1 className="text-xl font-bold">MarketMind AI</h1>
+          <p className="text-xs text-slate-400 mt-1">
+            Small Business Intelligence
+          </p>
         </div>
         <nav className="flex-1 overflow-y-auto px-4 py-6 space-y-1">
           {NAV_ITEMS.filter(item => !item.roles || item.roles.includes(user?.role?.role_name || user?.role)).map(({ to, label, icon: Icon }) => (
@@ -268,10 +283,18 @@ export default function Layout() {
       <div className="flex-1 flex flex-col h-screen overflow-hidden">
         <header className="h-16 shrink-0 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 flex items-center justify-end px-6 md:px-8 z-10 transition-colors duration-300">
           <div className="flex items-center gap-4">
-            <span className="text-sm text-slate-500 dark:text-slate-400 hidden sm:block">{today}</span>
+            <span className="text-sm text-slate-500 dark:text-slate-400 hidden sm:block">
+              {today}
+            </span>
+
             <ThemeToggle />
+
             <NotificationBell />
-            <ProfileMenu user={user} onLogout={handleLogout} />
+
+            <ProfileMenu
+              user={user}
+              onLogout={handleLogout}
+            />
           </div>
         </header>
 

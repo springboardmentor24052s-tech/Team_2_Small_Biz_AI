@@ -518,7 +518,7 @@ def get_churn_predictions(
         rows.append(
             {
                 "customer_id": c.id,
-                "customer_name": c.name,
+                "customer_name": c.full_name,
                 "risk_category": risk,
                 "churn_probability": round(prob, 4),
                 "recommendation": CHURN_RECS[risk],
@@ -748,6 +748,21 @@ def get_anomaly_alerts(
                     if s.sale_date
                     else dt.datetime.utcnow().isoformat()
                 ),
+            }
+        )
+
+    # Bulk quantity anomalies
+    for item in bulk_sale_items:
+        alerts.append(
+            {
+                "id": item.id,
+                "severity": "high",
+                "category": "inventory",
+                "description": (
+                    f"Unusual bulk order detected: "
+                    f"{item.quantity} units of product ID {item.product_id}."
+                ),
+                "created_at": dt.datetime.utcnow().isoformat(),
             }
         )
 

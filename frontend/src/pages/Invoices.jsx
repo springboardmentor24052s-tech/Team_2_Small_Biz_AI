@@ -1,11 +1,24 @@
 import { useEffect, useState, useCallback } from 'react'
 import api from '../services/api'
-import { Loading, PageHeader, Badge, EmptyState, ErrorBanner } from '../components/ui.jsx'
+import {
+  Loading,
+  PageHeader,
+  Badge,
+  EmptyState,
+  ErrorBanner,
+} from '../components/ui.jsx'
 import { Plus, Filter } from 'lucide-react'
+import { useAuth } from '../context/AuthContext.jsx'
 
-const STATUS_TONE = { pending: 'amber', paid: 'green', overdue: 'red' }
+const STATUS_TONE = {
+  pending: 'amber',
+  paid: 'green',
+  overdue: 'red',
+}
 
 export default function Invoices() {
+  const { hasRole } = useAuth()
+
   const [invoices, setInvoices] = useState([])
   const [customers, setCustomers] = useState([])
   const [loading, setLoading] = useState(true)
@@ -15,13 +28,23 @@ export default function Invoices() {
   const [statusFilter, setStatusFilter] = useState('all')
 
   const load = useCallback(() => {
-    Promise.all([api.get('/invoices/'), api.get('/customers/')])
-      .then(([i, c]) => { 
-        setInvoices(i.data)
-        setCustomers(c.data) 
+    setLoading(true)
+    setError(null)
+
+    Promise.all([
+      api.get('/invoices/'),
+      api.get('/customers/'),
+    ])
+      .then(([invoiceRes, customerRes]) => {
+        setInvoices(invoiceRes.data)
+        setCustomers(customerRes.data)
       })
       .catch((err) => {
-        setError(err.response?.data?.detail || 'Failed to load data.')
+        setError(
+          err.response?.data?.detail ||
+            err.message ||
+            'Failed to load invoices.'
+        )
       })
       .finally(() => setLoading(false))
   }, [])
@@ -52,34 +75,45 @@ export default function Invoices() {
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError(null)
+
     try {
       await api.post('/invoices/', {
         customer_id: form.customer_id ? Number(form.customer_id) : null,
         amount: Number(form.amount),
         due_date: form.due_date ? new Date(form.due_date).toISOString() : null,
       })
+
       setShowForm(false)
       setForm({ customer_id: '', amount: '', due_date: '' })
       setLoading(true)
       load()
     } catch (err) {
-      setError(err.response?.data?.detail || 'Could not create invoice.')
+      setError(
+        err.response?.data?.detail ||
+          'Could not create invoice.'
+      )
     }
   }
 
   const updateStatus = async (id, status) => {
     try {
       await api.patch(`/invoices/${id}/status`, { status })
-      setLoading(true)
       load()
     } catch (err) {
-      setError(err.response?.data?.detail || 'Could not update invoice status.')
+      setError(
+        err.response?.data?.detail ||
+          'Could not update invoice status.'
+      )
     }
   }
 
-  const filteredInvoices = invoices.filter((inv) => statusFilter === 'all' || inv.status === statusFilter)
+  const filteredInvoices = invoices.filter(
+    (inv) =>
+      statusFilter === 'all' ||
+      inv.status === statusFilter
+  )
 
-  if (loading) return <Loading label="Loading invoices..." />
+  if (loading) return <Loading />
 
   return (
     <div>
@@ -87,11 +121,19 @@ export default function Invoices() {
         title="Invoices"
         subtitle="Invoice generation, tracking, and payment monitoring."
         action={
-          <button onClick={() => setShowForm((v) => !v)} className="btn-primary flex items-center gap-2 text-xs">
-            <Plus size={14} /> New Invoice
-          </button>
+          canCreate && (
+            <button
+              onClick={() => setShowForm((v) => !v)}
+              className="btn-primary flex items-center gap-2 text-xs"
+            >
+              <Plus size={14} />
+              New Invoice
+            </button>
+          )
         }
       />
+
+      <ErrorBanner message={error} />
 
       {showForm && (
         <div className="card mb-6">
@@ -104,6 +146,7 @@ export default function Invoices() {
                 {customers.map((c) => <option key={c.id} value={c.id}>{c.full_name}</option>)}
               </select>
             </div>
+
             <div>
               <label className="text-xs font-medium text-slate-600 dark:text-slate-300">Amount (₹)</label>
               <input type="number" step="0.01" className="input mt-1" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} required />
@@ -112,7 +155,32 @@ export default function Invoices() {
               <label className="text-xs font-medium text-slate-600 dark:text-slate-300">Due Date</label>
               <input type="date" className="input mt-1" value={form.due_date} onChange={(e) => setForm({ ...form, due_date: e.target.value })} />
             </div>
-            <button type="submit" className="btn-primary">Create Invoice</button>
+
+            <div>
+              <label className="text-xs font-medium text-slate-600">
+                Due Date
+              </label>
+
+              <input
+                type="date"
+                className="input mt-1"
+                value={form.due_date}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    due_date: e.target.value,
+                  })
+                }
+                required
+              />
+            </div>
+
+            <button
+              type="submit"
+              className="btn-primary md:col-span-1"
+            >
+              Create Invoice
+            </button>
           </form>
         </div>
       )}
@@ -152,9 +220,14 @@ export default function Invoices() {
                   <th className="py-2 pr-4">Actions</th>
                 </tr>
               </thead>
+
               <tbody>
                 {filteredInvoices.map((inv) => {
-                  const customer = customers.find((c) => c.id === inv.customer_id)
+                  const customer = customers.find(
+                    (c) =>
+                      c.id === inv.customer_id
+                  )
+
                   return (
                     <tr key={inv.id} className="border-b border-slate-100 hover:bg-slate-50 dark:border-slate-700/60 dark:hover:bg-slate-800">
                       <td className="py-2 pr-4 font-mono text-xs">{inv.invoice_number}</td>
@@ -164,7 +237,15 @@ export default function Invoices() {
                       <td className="py-2 pr-4"><Badge tone={STATUS_TONE[inv.status] || 'slate'}>{inv.status}</Badge></td>
                       <td className="py-2 pr-4">
                         {inv.status !== 'paid' && (
-                          <button onClick={() => updateStatus(inv.id, 'paid')} className="text-xs text-brand-600 font-medium hover:underline">
+                          <button
+                            onClick={() =>
+                              updateStatus(
+                                inv.id,
+                                'paid'
+                              )
+                            }
+                            className="text-xs text-brand-600 font-medium hover:underline"
+                          >
                             Mark Paid
                           </button>
                         )}
