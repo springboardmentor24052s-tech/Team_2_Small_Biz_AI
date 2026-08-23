@@ -1,10 +1,12 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext.jsx'
 import api from '../services/api'
 import ThemeToggle from '../components/ThemeToggle'
+import Avatar from '../components/Avatar'
 import {
   LayoutDashboard, ShoppingCart, Boxes, FileText, Users,
+  UsersRound, Tags, Truck, Database,
   TrendingUp, PieChart, UserMinus, Sparkles, ShieldAlert, LogOut,
   Settings, Bell, ChevronDown, UsersRound, Tags, Truck, Database
 } from 'lucide-react'
@@ -34,20 +36,52 @@ const ROLE_LABELS = {
   admin: 'System Administrator',
 }
 
-function initials(name) {
-  if (!name) return '?'
-  const parts = name.trim().split(' ')
-  return (parts[0]?.[0] || '') + (parts[1]?.[0] || '')
+// Pages restricted by role (pre-dev parity). Pages not listed are visible to
+// every logged-in role.
+const ROLE_RESTRICTED = {
+  '/team': ['business_owner', 'admin'],
+  '/forecasting': ['business_owner', 'store_manager', 'admin'],
+  '/churn': ['business_owner', 'store_manager', 'admin'],
+  '/anomalies': ['business_owner', 'store_manager', 'admin'],
+}
+
+const NOTIF_META = {
+  inventory: { icon: Boxes, color: 'text-amber-500 dark:text-amber-400', label: 'Inventory' },
+  anomaly: { icon: ShieldAlert, color: 'text-red-500 dark:text-red-400', label: 'Anomaly' },
+  invoice: { icon: FileText, color: 'text-blue-500 dark:text-blue-400', label: 'Invoice' },
+}
+
+function timeAgo(dateStr) {
+  const diff = Date.now() - new Date(dateStr).getTime()
+  const mins = Math.floor(diff / 60000)
+  if (mins < 1) return 'just now'
+  if (mins < 60) return `${mins}m ago`
+  const hours = Math.floor(mins / 60)
+  if (hours < 24) return `${hours}h ago`
+  const days = Math.floor(hours / 24)
+  if (days < 30) return `${days}d ago`
+  return new Date(dateStr).toLocaleDateString()
 }
 
 function NotificationBell() {
-  const [alerts, setAlerts] = useState([])
+  const [items, setItems] = useState([])
+  const [unread, setUnread] = useState(0)
   const [open, setOpen] = useState(false)
+  const [loading, setLoading] = useState(false)
   const ref = useRef(null)
+  const navigate = useNavigate()
+
+  const refreshCount = useCallback(() => {
+    api.get('/notifications/unread-count')
+      .then((res) => setUnread(res.data.unread_count))
+      .catch(() => {})
+  }, [])
 
   useEffect(() => {
-    api.get('/inventory/alerts').then((res) => setAlerts(res.data)).catch(() => setAlerts([]))
-  }, [])
+    refreshCount()
+    const timer = setInterval(refreshCount, 30000)
+    return () => clearInterval(timer)
+  }, [refreshCount])
 
   useEffect(() => {
     const handleClick = (e) => {
@@ -57,16 +91,65 @@ function NotificationBell() {
     return () => document.removeEventListener('mousedown', handleClick)
   }, [])
 
+  const toggleDropdown = async () => {
+    if (open) {
+      setOpen(false)
+      return
+    }
+    setOpen(true)
+    setLoading(true)
+    try {
+      const res = await api.get('/notifications')
+      setItems(res.data.items)
+      setUnread(res.data.unread_count)
+    } catch {
+      setItems([])
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const markRead = async (n) => {
+    try {
+      await api.post(`/notifications/${n.id}/read`)
+      setItems((prev) => prev.map((x) => (x.id === n.id ? { ...x, read: true } : x)))
+      setUnread((u) => Math.max(0, u - 1))
+    } catch {
+      // ignore mark-read failures (bell state refreshes on next poll)
+    }
+  }
+
+  const markAllRead = async () => {
+    try {
+      await api.post('/notifications/read-all')
+      setItems((prev) => prev.map((x) => ({ ...x, read: true })))
+      setUnread(0)
+    } catch {
+      // ignore read-all failures (bell state refreshes on next poll)
+    }
+  }
+
+  const handleItemClick = async (n) => {
+    if (!n.read) await markRead(n)
+    setOpen(false)
+    if (n.link) navigate(n.link)
+  }
+
   return (
     <div className="relative" ref={ref}>
-      <button onClick={() => setOpen((v) => !v)} className="relative p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+      <button
+        onClick={toggleDropdown}
+        className="relative p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+        aria-label="Notifications"
+      >
         <Bell size={20} className="text-slate-500 dark:text-slate-400" />
-        {alerts.length > 0 && (
-          <span className="absolute -top-0.5 -right-0.5 bg-red-500 text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
-            {alerts.length}
+        {unread > 0 && (
+          <span className="absolute -top-0.5 -right-0.5 bg-red-500 text-white text-[10px] font-bold rounded-full min-w-4 h-4 px-1 flex items-center justify-center">
+            {unread > 9 ? '9+' : unread}
           </span>
         )}
       </button>
+
       {open && (
         <div className="absolute right-0 mt-2 w-72 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg shadow-lg py-2 z-50 max-h-80 overflow-y-auto">
           <p className="px-4 py-1 text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase">Notifications</p>
@@ -102,9 +185,7 @@ function ProfileMenu({ user, onLogout }) {
   return (
     <div className="relative" ref={ref}>
       <button onClick={() => setOpen((v) => !v)} className="flex items-center gap-2">
-        <div className="w-9 h-9 rounded-full bg-brand-100 dark:bg-slate-800 text-brand-700 dark:text-slate-200 flex items-center justify-center text-sm font-semibold">
-          {initials(user?.full_name)}
-        </div>
+        <Avatar user={user} size="sm" />
         <ChevronDown size={16} className="text-slate-400 dark:text-slate-500" />
       </button>
       {open && (
@@ -134,7 +215,10 @@ function ProfileMenu({ user, onLogout }) {
 export default function Layout() {
   const { user, logout } = useAuth()
 
-  const visibleItems = NAV_ITEMS
+  const visibleItems = NAV_ITEMS.filter((item) => {
+    const allowed = ROLE_RESTRICTED[item.to]
+    return !allowed || allowed.includes(user?.role)
+  })
   const today = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric', weekday: 'long' })
 
   const handleLogout = () => {

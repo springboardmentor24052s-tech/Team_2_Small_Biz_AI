@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from sqlalchemy.orm import Session
 
 from .. import models, schemas
+from ..cache import get_or_set, invalidate
 from ..database import get_db
 from ..deps import get_current_user, require_roles
 
@@ -26,6 +27,7 @@ def create_customer(
     db.add(customer)
     db.commit()
     db.refresh(customer)
+    invalidate("customers_list:")
     return customer
 
 
@@ -48,6 +50,7 @@ def delete_customer(
         raise HTTPException(status_code=404, detail="Customer not found")
     db.delete(customer)
     db.commit()
+    invalidate("customers_list:")
     return None
 
 

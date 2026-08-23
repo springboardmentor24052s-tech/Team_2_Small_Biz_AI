@@ -6,13 +6,26 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from sqlalchemy.orm import Session, joinedload
 
 from .. import models, schemas
+from ..cache import get_or_set, invalidate
 from ..database import get_db
 from ..deps import get_current_user, require_roles
-from .inventory import _check_and_create_alert
+from .inventory import _check_and_create_alert, _ensure_inventory_row, _record_inventory_transaction
 
 router = APIRouter(prefix="/api/sales", tags=["Sales"])
 
 REQUIRED_CSV_COLUMNS = {"product_name", "quantity", "unit_price"}
+
+
+def _load_sales(db: Session, business_id: int, limit: int):
+    """Fetch the sales list once and serialize it so the cached value is plain JSON."""
+    return [
+        schemas.SaleOut.model_validate(s).model_dump(mode="json")
+        for s in db.query(models.Sale)
+        .filter(models.Sale.business_id == business_id)
+        .order_by(models.Sale.sale_date.desc())
+        .limit(limit)
+        .all()
+    ]
 
 
 @router.get("/", response_model=List[schemas.SaleOut])
