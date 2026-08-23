@@ -17,15 +17,15 @@ export default function Register() {
     confirmPassword: "",
   });
 
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
 
   const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    setFormData({
+      ...formData,
+      [e.target.name]: e.target.value,
+    });
   };
 
   const togglePassword = (e) => {
@@ -65,13 +65,17 @@ export default function Register() {
         password: formData.password,
       });
 
-      setSuccessMsg("Account registered successfully! Redirecting to login...");
+      setSuccessMsg(
+        "Account registered successfully! Redirecting to login..."
+      );
+
       setTimeout(() => {
         navigate("/login");
       }, 1500);
     } catch (err) {
       setError(
-        err.response?.data?.detail || "Registration failed. Please check your information."
+        err.response?.data?.detail ||
+          "Registration failed. Please check your information."
       );
     } finally {
       setLoading(false);
@@ -137,12 +141,14 @@ export default function Register() {
 
         {/* Form Container */}
         <div className="md:col-span-7 p-8 md:p-12 flex flex-col justify-center bg-white dark:bg-slate-900 transition-colors duration-300">
+
           <div className="mb-6">
             <h2 className="text-3xl font-extrabold text-slate-900 dark:text-slate-100 tracking-tight">
-              Create Account
+              Create an account
             </h2>
+
             <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-              Enter your details below to register your business profile.
+              Join MarketMind AI to start managing your business.
             </p>
           </div>
 
@@ -156,6 +162,32 @@ export default function Register() {
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
+
+            {/* Company Name */}
+            <div>
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">
+                Company Name
+              </label>
+
+              <div className="relative">
+                <Building2
+                  size={18}
+                  className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 pointer-events-none"
+                />
+
+                <input
+                  type="text"
+                  name="company_name"
+                  required
+                  value={formData.company_name}
+                  onChange={handleChange}
+                  className="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-slate-100 focus:bg-white dark:focus:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-[#2e2b8f]/20 dark:focus:ring-indigo-500/30 focus:border-[#2e2b8f] dark:focus:border-indigo-500 transition-all"
+                  placeholder="Your Business Name"
+                />
+              </div>
+            </div>
+
+            {/* Full Name */}
             <div>
               <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">
                 Company Name
@@ -178,13 +210,18 @@ export default function Register() {
               <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">
                 Full Name
               </label>
+
               <div className="relative">
-                <User size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 pointer-events-none" />
+                <User
+                  size={18}
+                  className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 pointer-events-none"
+                />
+
                 <input
                   type="text"
-                  name="name"
+                  name="full_name"
                   required
-                  value={formData.name}
+                  value={formData.full_name}
                   onChange={handleChange}
                   className="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-slate-100 focus:bg-white dark:focus:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-[#2e2b8f]/20 dark:focus:ring-indigo-500/30 focus:border-[#2e2b8f] dark:focus:border-indigo-500 transition-all"
                   placeholder="John Doe"
@@ -192,12 +229,18 @@ export default function Register() {
               </div>
             </div>
 
+            {/* Email */}
             <div>
               <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">
                 Email Address
               </label>
+
               <div className="relative">
-                <Mail size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 pointer-events-none" />
+                <Mail
+                  size={18}
+                  className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 pointer-events-none"
+                />
+
                 <input
                   type="email"
                   name="email"
@@ -212,13 +255,21 @@ export default function Register() {
 
 
 
+            {/* Passwords */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+
+              {/* Password */}
               <div>
                 <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">
                   Password
                 </label>
+
                 <div className="relative">
-                  <Lock size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 pointer-events-none" />
+                  <Lock
+                    size={18}
+                    className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 pointer-events-none"
+                  />
+
                   <input
                     type={showPassword ? "text" : "password"}
                     name="password"
@@ -228,22 +279,33 @@ export default function Register() {
                     className="w-full pl-10 pr-12 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-slate-100 focus:bg-white dark:focus:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-[#2e2b8f]/20 dark:focus:ring-indigo-500/30 focus:border-[#2e2b8f] dark:focus:border-indigo-500 transition-all"
                     placeholder="••••••••"
                   />
+
                   <button
                     type="button"
                     onClick={togglePassword}
                     className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 focus:outline-none p-1 z-10"
                   >
-                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                    {showPassword ? (
+                      <EyeOff size={18} />
+                    ) : (
+                      <Eye size={18} />
+                    )}
                   </button>
                 </div>
               </div>
 
+              {/* Confirm Password */}
               <div>
                 <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">
                   Confirm Password
                 </label>
+
                 <div className="relative">
-                  <Lock size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 pointer-events-none" />
+                  <Lock
+                    size={18}
+                    className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 pointer-events-none"
+                  />
+
                   <input
                     type={showConfirmPassword ? "text" : "password"}
                     name="confirmPassword"
@@ -253,30 +315,44 @@ export default function Register() {
                     className="w-full pl-10 pr-12 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-slate-100 focus:bg-white dark:focus:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-[#2e2b8f]/20 dark:focus:ring-indigo-500/30 focus:border-[#2e2b8f] dark:focus:border-indigo-500 transition-all"
                     placeholder="••••••••"
                   />
+
                   <button
                     type="button"
                     onClick={toggleConfirmPassword}
                     className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 focus:outline-none p-1 z-10"
                   >
-                    {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                    {showConfirmPassword ? (
+                      <EyeOff size={18} />
+                    ) : (
+                      <Eye size={18} />
+                    )}
                   </button>
                 </div>
               </div>
+
             </div>
 
+            {/* Submit */}
             <button
               type="submit"
               disabled={loading}
               className="w-full mt-2 py-3 px-4 bg-[#2e2b8f] hover:bg-[#252275] active:bg-[#1d1a5c] dark:bg-indigo-600 dark:hover:bg-indigo-500 dark:active:bg-indigo-700 text-white font-semibold rounded-xl text-sm shadow-md shadow-[#2e2b8f]/20 dark:shadow-none transition-all flex items-center justify-center gap-2 disabled:opacity-50"
             >
-              <span>{loading ? "Creating Account..." : "Create Account"}</span>
+              <span>
+                {loading ? "Creating Account..." : "Create Account"}
+              </span>
+
               {!loading && <ArrowRight size={16} />}
             </button>
+
           </form>
 
           <p className="text-center text-xs text-slate-500 dark:text-slate-400 mt-6">
             Already have an account?{" "}
-            <Link to="/login" className="text-[#2e2b8f] dark:text-indigo-400 font-bold hover:underline">
+            <Link
+              to="/login"
+              className="text-[#2e2b8f] dark:text-indigo-400 font-bold hover:underline"
+            >
               Sign in
             </Link>
           </p>

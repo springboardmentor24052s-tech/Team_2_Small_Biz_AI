@@ -88,10 +88,12 @@ export default function Login() {
 
         {/* Form Container */}
         <div className="md:col-span-7 p-8 md:p-12 flex flex-col justify-center bg-white dark:bg-slate-900 transition-colors duration-300">
+          
           <div className="mb-6">
             <h2 className="text-3xl font-extrabold text-slate-900 dark:text-slate-100 tracking-tight">
               Sign In
             </h2>
+
             <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
               Enter your credentials to access your account.
             </p>
@@ -106,8 +108,13 @@ export default function Login() {
               <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">
                 Email Address
               </label>
+
               <div className="relative">
-                <Mail size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 pointer-events-none" />
+                <Mail
+                  size={18}
+                  className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 pointer-events-none"
+                />
+
                 <input
                   type="email"
                   required
@@ -124,8 +131,13 @@ export default function Login() {
               <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5">
                 Password
               </label>
+
               <div className="relative">
-                <Lock size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 pointer-events-none" />
+                <Lock
+                  size={18}
+                  className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 pointer-events-none"
+                />
+
                 <input
                   type={showPassword ? "text" : "password"}
                   required
@@ -134,19 +146,24 @@ export default function Login() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                 />
+
                 <button
                   type="button"
                   onClick={togglePasswordVisibility}
                   className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 focus:outline-none p-1 z-10"
                 >
-                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  {showPassword ? (
+                    <EyeOff size={18} />
+                  ) : (
+                    <Eye size={18} />
+                  )}
                 </button>
               </div>
             </div>
 
             {/* Remember Me & Forgot Password */}
-            <div className="flex items-center justify-between pt-1">
-              <label className="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-400 cursor-pointer select-none font-medium">
+            <div className="flex items-center justify-between">
+              <label className="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-400 cursor-pointer">
                 <input
                   type="checkbox"
                   checked={rememberMe}
@@ -171,6 +188,7 @@ export default function Login() {
               className="w-full mt-2 py-3 px-4 bg-[#2e2b8f] hover:bg-[#252275] active:bg-[#1d1a5c] dark:bg-indigo-600 dark:hover:bg-indigo-500 dark:active:bg-indigo-700 text-white font-semibold rounded-xl text-sm shadow-md shadow-[#2e2b8f]/20 dark:shadow-none transition-all flex items-center justify-center gap-2 disabled:opacity-50"
             >
               <span>{loading ? "Signing in..." : "Sign In"}</span>
+
               {!loading && <ArrowRight size={16} />}
             </button>
 
@@ -178,11 +196,13 @@ export default function Login() {
 
           <p className="text-center text-xs text-slate-500 dark:text-slate-400 mt-6">
             New business?{" "}
-            <Link to="/register" className="text-[#2e2b8f] dark:text-indigo-400 font-bold hover:underline">
+            <Link
+              to="/register"
+              className="text-[#2e2b8f] dark:text-indigo-400 font-bold hover:underline"
+            >
               Create an account
             </Link>
           </p>
-
         </div>
       </div>
 

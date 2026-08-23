@@ -7,6 +7,7 @@ import { downloadCSV } from '../utils/csv'
 
 export default function Customers() {
   const { hasRole } = useAuth()
+
   const [customers, setCustomers] = useState([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
@@ -19,10 +20,17 @@ export default function Customers() {
   const [sortAsc, setSortAsc] = useState(true)
 
   const load = useCallback(() => {
-    api.get('/customers/')
+    setLoading(true)
+
+    api
+      .get('/customers/')
       .then((res) => setCustomers(res.data))
       .catch((err) => {
-        setError(err.response?.data?.detail || err.message || 'Failed to load customers.')
+        setError(
+          err.response?.data?.detail ||
+            err.message ||
+            'Failed to load customers.'
+        )
       })
       .finally(() => setLoading(false))
   }, [])
@@ -46,7 +54,15 @@ export default function Customers() {
     }
   }, [])
 
-  const canCreate = hasRole('business_owner', 'sales_executive', 'admin')
+  useEffect(() => {
+    load()
+  }, [load])
+
+  const canCreate = hasRole(
+    'business_owner',
+    'sales_executive',
+    'admin'
+  )
 
   const handleExport = () => {
     const rows = customers.map((c) => [
@@ -60,36 +76,62 @@ export default function Customers() {
 
   const handleUpload = async (e) => {
     const file = e.target.files[0]
+
     if (!file) return
+
     const data = new FormData()
     data.append('file', file)
+
     setUploadMsg('Uploading...')
+    setError(null)
+
     try {
-      const res = await api.post('/customers/upload-csv', data, { headers: { 'Content-Type': 'multipart/form-data' } })
-      setUploadMsg(`Uploaded: ${res.data.customers_created} created, ${res.data.rows_skipped} skipped (duplicates/invalid).`)
+      const res = await api.post(
+        '/customers/upload-csv',
+        data,
+        {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+        }
+      )
+
+      setUploadMsg(
+        `Uploaded: ${res.data.customers_created} created, ${res.data.rows_skipped} skipped (duplicates/invalid).`
+      )
+
       load()
     } catch (err) {
-      setUploadMsg(err.response?.data?.detail || 'Upload failed.')
+      setUploadMsg(
+        err.response?.data?.detail || 'Upload failed.'
+      )
     }
+
     e.target.value = ''
   }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError(null)
+
     try {
       await api.post('/customers/', form)
+
       setShowForm(false)
       setForm({ full_name: '', email: '', phone: '' })
       load()
     } catch (err) {
-      setError(err.response?.data?.detail || 'Could not create customer.')
+      setError(
+        err.response?.data?.detail ||
+          'Could not create customer.'
+      )
     }
   }
 
   const handleSort = (field) => {
-    if (sortField === field) setSortAsc(!sortAsc)
-    else {
+    if (sortField === field) {
+      setSortAsc((value) => !value)
+    } else {
       setSortField(field)
       setSortAsc(true)
     }
@@ -101,25 +143,47 @@ export default function Customers() {
       c.email?.toLowerCase().includes(search.toLowerCase())
     )
     .sort((a, b) => {
-      let valA = a[sortField] || ''
-      let valB = b[sortField] || ''
-      if (sortAsc) return valA > valB ? 1 : -1
+      let valA = a[sortField] ?? ''
+      let valB = b[sortField] ?? ''
+
+      if (sortField === 'created_at') {
+        valA = new Date(valA).getTime()
+        valB = new Date(valB).getTime()
+      } else {
+        valA = String(valA).toLowerCase()
+        valB = String(valB).toLowerCase()
+      }
+
+      if (valA === valB) return 0
+
+      if (sortAsc) {
+        return valA > valB ? 1 : -1
+      }
+
       return valA < valB ? 1 : -1
     })
 
-  if (loading) return <Loading label="Loading customers..." />
+  if (loading) {
+    return <Loading />
+  }
 
   return (
-    <div>
+    <>
       <PageHeader
         title="Customers"
         subtitle="Customer profiles and contact directory."
         action={
           canCreate && (
-            <div className="flex gap-2">
-              <label className="btn-secondary cursor-pointer flex items-center gap-2 text-xs">
-                <Upload size={14} /> Upload CSV
-                <input type="file" accept=".csv" onChange={handleUpload} className="hidden" />
+            <div className="flex items-center gap-2">
+              <label className="btn-secondary flex items-center gap-2 text-xs cursor-pointer">
+                <Upload size={14} />
+                Upload CSV
+                <input
+                  type="file"
+                  accept=".csv"
+                  className="hidden"
+                  onChange={handleUpload}
+                />
               </label>
               <button onClick={handleExport} className="btn-secondary flex items-center gap-2 text-xs">
                 <Download size={14} /> Export CSV
@@ -132,20 +196,30 @@ export default function Customers() {
         }
       />
 
-      {uploadMsg && <div className="bg-brand-50 text-brand-700 border border-brand-100 rounded-lg px-4 py-3 text-sm mb-4">{uploadMsg}</div>}
+      {uploadMsg && (
+        <div className="bg-brand-50 text-brand-700 border border-brand-100 rounded-lg px-4 py-3 text-sm mb-4">
+          {uploadMsg}
+        </div>
+      )}
 
       {showForm && (
         <div className="card mb-6">
           <ErrorBanner message={error} />
-          <form onSubmit={handleSubmit} className="grid grid-cols-2 md:grid-cols-3 gap-3 items-end">
+
+          <form
+            onSubmit={handleSubmit}
+            className="grid grid-cols-2 md:grid-cols-3 gap-3 items-end"
+          >
             <div>
               <label className="text-xs font-medium text-slate-600 dark:text-slate-300">Name</label>
               <input className="input mt-1" value={form.full_name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
             </div>
+
             <div>
               <label className="text-xs font-medium text-slate-600 dark:text-slate-300">Email</label>
               <input type="email" className="input mt-1" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
             </div>
+
             <div>
               <label className="text-xs font-medium text-slate-600 dark:text-slate-300">Phone</label>
               <input className="input mt-1" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
@@ -163,7 +237,9 @@ export default function Customers() {
               type="text"
               placeholder="Search customers..."
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) =>
+                setSearch(e.target.value)
+              }
               className="input text-xs pl-8 py-1.5"
             />
           </div>
@@ -179,13 +255,29 @@ export default function Customers() {
                   <th className="py-2 pr-4 cursor-pointer" onClick={() => handleSort('full_name')}>
                     <div className="flex items-center gap-1">Name <ArrowUpDown size={12} /></div>
                   </th>
-                  <th className="py-2 pr-4">Email</th>
-                  <th className="py-2 pr-4">Phone</th>
-                  <th className="py-2 pr-4 cursor-pointer" onClick={() => handleSort('created_at')}>
-                    <div className="flex items-center gap-1">Joined <ArrowUpDown size={12} /></div>
+
+                  <th className="py-2 pr-4">
+                    Email
+                  </th>
+
+                  <th className="py-2 pr-4">
+                    Phone
+                  </th>
+
+                  <th
+                    className="py-2 pr-4 cursor-pointer"
+                    onClick={() =>
+                      handleSort('created_at')
+                    }
+                  >
+                    <div className="flex items-center gap-1">
+                      Joined
+                      <ArrowUpDown size={12} />
+                    </div>
                   </th>
                 </tr>
               </thead>
+
               <tbody>
                 {processedCustomers.map((c) => (
                   <tr key={c.id} className="border-b border-slate-100 hover:bg-slate-50 dark:border-slate-700/60 dark:hover:bg-slate-800">
@@ -200,6 +292,6 @@ export default function Customers() {
           )}
         </div>
       </div>
-    </div>
+    </>
   )
 }

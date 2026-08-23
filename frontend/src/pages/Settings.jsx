@@ -52,7 +52,7 @@ const PERMISSIONS_MAP = {
 }
 
 export default function Settings() {
-  const { user, setUser } = useAuth()
+  const { user, updateUser } = useAuth()
 
   // Profile Form State
   const [fullName, setFullName] = useState(user?.full_name || '')
@@ -582,7 +582,7 @@ export default function Settings() {
             </div>
             <p className="text-xs text-slate-500 dark:text-slate-400">
               Your assigned privileges as an active{' '}
-              <span className="font-semibold">{ROLE_LABELS[user?.role] || 'User'}</span>:
+              <span className="font-semibold">{ROLE_LABELS[user?.role?.role_name] || 'User'}</span>:
             </p>
             <ul className="space-y-2 pt-1">
               {userPermissions.map((perm, index) => (
