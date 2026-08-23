@@ -52,6 +52,12 @@ class UserOut(BaseModel):
     role: RoleOut
     business: BusinessOut
     is_active: bool
+    phone: Optional[str] = None
+    preferred_currency: Optional[str] = None
+    timezone: Optional[str] = None
+    avatar_color: Optional[str] = None
+    avatar_url: Optional[str] = None
+    bio: Optional[str] = None
 
 class UserRoleUpdate(BaseModel):
     role_name: str

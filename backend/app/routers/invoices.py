@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from .. import models, schemas
+from ..cache import get_or_set, invalidate
 from ..database import get_db
 from ..deps import get_current_user, require_roles
 
@@ -38,6 +39,7 @@ def create_invoice(
     db.add(invoice)
     db.commit()
     db.refresh(invoice)
+    invalidate("invoices_list:")
     return invoice
 
 
@@ -63,6 +65,7 @@ def update_invoice_status(
             
     db.commit()
     db.refresh(invoice)
+    invalidate("invoices_list:")
     return invoice
 
 
@@ -83,4 +86,6 @@ def check_overdue(db: Session = Depends(get_db), current_user=Depends(get_curren
     for inv in invoices:
         inv.invoice_status = "overdue"
     db.commit()
+    if invoices:
+        invalidate("invoices_list:")
     return {"marked_overdue": len(invoices)}

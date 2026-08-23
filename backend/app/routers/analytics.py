@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func
 
 from .. import models, schemas
+from ..cache import get_or_set
 from ..database import get_db
 from ..deps import get_current_user
 
@@ -56,4 +57,14 @@ def kpis(db: Session = Depends(get_db), current_user=Depends(get_current_user)):
         overdue_invoices=overdue_invoices,
         revenue_by_day=revenue_series,
         top_products=top_products,
+    )
+
+
+@router.get("/kpis", response_model=schemas.KPIResponse)
+def kpis(db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+    """Dashboard KPIs. Cached 60s — recomputing every poll is wasteful."""
+    return get_or_set(
+        f"analytics:{current_user.business_id}:kpis",
+        60,
+        lambda: _compute_kpis(db, current_user.business_id),
     )

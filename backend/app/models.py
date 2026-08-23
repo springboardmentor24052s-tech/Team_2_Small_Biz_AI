@@ -33,6 +33,27 @@ class Role(Base):
     users = relationship("User", back_populates="role")
 
 
+class Business(Base):
+    __tablename__ = "businesses"
+
+    id = Column(Integer, primary_key=True, index=True)
+    company_name = Column(String, nullable=False)
+    created_at = Column(DateTime, default=dt.datetime.utcnow)
+
+    users = relationship("User", back_populates="business")
+    customers = relationship("Customer", back_populates="business")
+    categories = relationship("Category", back_populates="business")
+    suppliers = relationship("Supplier", back_populates="business")
+    products = relationship("Product", back_populates="business")
+    sales = relationship("Sale", back_populates="business")
+    invoices = relationship("Invoice", back_populates="business")
+    forecasts = relationship("Forecast", back_populates="business")
+    inventory_alerts = relationship("InventoryAlert", back_populates="business")
+    anomaly_alerts = relationship("AnomalyAlert", back_populates="business")
+    uploaded_datasets = relationship("UploadedDataset", back_populates="business")
+    notifications = relationship("Notification", back_populates="business")
+
+
 class User(Base):
     __tablename__ = "users"
 
@@ -61,6 +82,20 @@ class User(Base):
     reset_otp = Column(String, nullable=True)
     reset_otp_expiry = Column(DateTime, nullable=True)
 
+    # Profile extras
+    phone = Column(String, nullable=True)
+    preferred_currency = Column(String, default="INR")
+    timezone = Column(String, default="Asia/Kolkata")
+    avatar_color = Column(String, nullable=True)
+    avatar_url = Column(String, nullable=True)  # served from /uploads/avatars
+    bio = Column(Text, nullable=True)
+
+    # Multi-tenancy
+    business_id = Column(Integer, ForeignKey("businesses.id"), nullable=True)
+
+    business = relationship("Business", back_populates="users")
+    inventory_transactions = relationship("InventoryTransaction", back_populates="user")
+
 
 class Customer(Base):
     __tablename__ = "customers"
@@ -78,6 +113,9 @@ class Customer(Base):
     last_purchase_date = Column(Date, nullable=True)
     created_at = Column(DateTime, default=dt.datetime.utcnow)
 
+    business_id = Column(Integer, ForeignKey("businesses.id"), nullable=True)
+
+    business = relationship("Business", back_populates="customers")
     sales = relationship("Sale", back_populates="customer")
     segments = relationship("CustomerSegment", back_populates="customer")
     churn_predictions = relationship("ChurnPrediction", back_populates="customer")
@@ -261,6 +299,10 @@ class Anomaly(Base):
     description = Column(Text, nullable=True)
     detected_at = Column(DateTime, default=dt.datetime.utcnow)
     resolved = Column(Boolean, default=False)
+
+    business_id = Column(Integer, ForeignKey("businesses.id"), nullable=True)
+
+    business = relationship("Business", back_populates="inventory_alerts")
 
 
 # --- Phase 2: AI Tables ---

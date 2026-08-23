@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session, joinedload
 
 from .database import get_db
 from .core.security import decode_access_token
+from .cache import get_or_set
 from . import models
 
 security = HTTPBearer()

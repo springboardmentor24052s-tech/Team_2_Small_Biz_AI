@@ -1,11 +1,17 @@
 import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
+from fastapi.staticfiles import StaticFiles
+from sqlalchemy import text
 
 from .database import engine, SessionLocal
 from . import models
 from .seed_data import seed_if_empty
 from .routers import auth, customers, inventory, sales, invoices, analytics, categories, suppliers, datasets, users, ai
+
+# Lightweight migration: add business_id columns + backfill on pre-existing SQLite DBs
+ensure_business_id_columns(engine)
 
 app = FastAPI(
     title="MarketMind AI",
@@ -32,6 +38,11 @@ app.include_router(suppliers.router)
 app.include_router(datasets.router)
 app.include_router(users.router)
 app.include_router(ai.router)
+app.include_router(categories.router)
+app.include_router(suppliers.router)
+app.include_router(datasets.router)
+app.include_router(users.router)
+app.include_router(notifications.router)
 
 
 
