@@ -53,23 +53,14 @@ export default function Datasets() {
           <table className="w-full text-sm">
             <thead>
               <tr className="text-left text-slate-500 border-b border-slate-200">
-                <th className="py-2">Dataset Name</th>
-                <th className="py-2">Type</th>
-                <th className="py-2">Rows Count</th>
-                <th className="py-2">Upload Date</th>
+                <th className="py-2 px-2">Dataset Name</th>
+                <th className="py-2 px-2">Status</th>
+                <th className="py-2 px-2">Total Rows</th>
+                <th className="py-2 px-2">Valid</th>
+                <th className="py-2 px-2">Invalid</th>
+                <th className="py-2 px-2">Upload Date</th>
               </tr>
             </thead>
-            <tbody>
-              {datasets.map((d) => (
-                <tr key={d.id} className="border-b border-slate-100 hover:bg-slate-50">
-                  <td className="py-2 font-medium">{d.file_name}</td>
-                  <td className="py-2">
-                    <Badge tone="blue">{d.file_name?.toLowerCase().includes('sale') ? 'Sales' : 'Inventory'}</Badge>
-                  </td>
-                  <td className="py-2">{d.total_records || '—'}</td>
-                  <td className="py-2 text-slate-500">{new Date(d.upload_date).toLocaleString()}</td>
-                </tr>
-              </thead>
 
               <tbody>
                 {datasets.map((d) => (
@@ -114,7 +105,6 @@ export default function Datasets() {
                 ))}
               </tbody>
             </table>
-          </div>
         )}
       </div>
     </div>

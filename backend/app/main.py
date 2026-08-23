@@ -7,11 +7,19 @@ from sqlalchemy import text
 
 from .database import engine, SessionLocal
 from . import models
+from .migrate import ensure_business_id_columns
 from .seed_data import seed_if_empty
-from .routers import auth, customers, inventory, sales, invoices, analytics, categories, suppliers, datasets, users, ai,revenue
 
-# Lightweight migration: add business_id columns + backfill on pre-existing SQLite DBs
+# Initialize database tables
+models.Base.metadata.create_all(bind=engine)
+
+# Run lightweight migrations for multi-tenant setup
 ensure_business_id_columns(engine)
+from .routers import (
+    auth, customers, inventory, sales, invoices, analytics, 
+    categories, suppliers, datasets, users, ai, revenue, notifications,
+    forecasting, segmentation
+)
 
 app = FastAPI(
     title="MarketMind AI",
@@ -41,10 +49,9 @@ app.include_router(suppliers.router)
 app.include_router(datasets.router)
 app.include_router(users.router)
 app.include_router(ai.router)
-app.include_router(categories.router)
-app.include_router(suppliers.router)
-app.include_router(datasets.router)
-app.include_router(users.router)
+app.include_router(revenue.router)
+app.include_router(forecasting.router)
+app.include_router(segmentation.router)
 app.include_router(notifications.router)
 
 

@@ -7,21 +7,7 @@ from .database import Base
 
 # --- Phase 1: Core Schema ---
 
-class Business(Base):
-    __tablename__ = "businesses"
 
-    id = Column(Integer, primary_key=True, index=True)
-    company_name = Column(String, nullable=False)
-    created_at = Column(DateTime, default=dt.datetime.utcnow)
-
-    users = relationship("User", back_populates="business")
-    customers = relationship("Customer", back_populates="business")
-    categories = relationship("Category", back_populates="business")
-    suppliers = relationship("Supplier", back_populates="business")
-    products = relationship("Product", back_populates="business")
-    sales = relationship("Sale", back_populates="business")
-    alerts = relationship("Alert", back_populates="business")
-    forecasts = relationship("Forecast", back_populates="business")
 
 class Role(Base):
     __tablename__ = "roles"
@@ -90,11 +76,6 @@ class User(Base):
     avatar_url = Column(String, nullable=True)  # served from /uploads/avatars
     bio = Column(Text, nullable=True)
 
-    # Multi-tenancy
-    business_id = Column(Integer, ForeignKey("businesses.id"), nullable=True)
-
-    business = relationship("Business", back_populates="users")
-    inventory_transactions = relationship("InventoryTransaction", back_populates="user")
 
 
 class Customer(Base):
@@ -113,14 +94,11 @@ class Customer(Base):
     last_purchase_date = Column(Date, nullable=True)
     created_at = Column(DateTime, default=dt.datetime.utcnow)
 
-    business_id = Column(Integer, ForeignKey("businesses.id"), nullable=True)
-
     business = relationship("Business", back_populates="customers")
     sales = relationship("Sale", back_populates="customer")
     segments = relationship("CustomerSegment", back_populates="customer")
     churn_predictions = relationship("ChurnPrediction", back_populates="customer")
     recommendations = relationship("ProductRecommendation", back_populates="customer")
-    business = relationship("Business", back_populates="customers")
 
 
 class Category(Base):
