@@ -8,7 +8,7 @@ from sqlalchemy import text
 from .database import engine, SessionLocal
 from . import models
 from .seed_data import seed_if_empty
-from .routers import auth, customers, inventory, sales, invoices, analytics, categories, suppliers, datasets, users, ai
+from .routers import auth, customers, inventory, sales, invoices, analytics, categories, suppliers, datasets, users, ai,revenue
 
 # Lightweight migration: add business_id columns + backfill on pre-existing SQLite DBs
 ensure_business_id_columns(engine)
