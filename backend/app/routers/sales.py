@@ -10,7 +10,7 @@ from .. import models, schemas
 from ..cache import get_or_set, invalidate
 from ..database import get_db
 from ..deps import get_current_user, require_roles
-from .inventory import _check_and_create_alert, _ensure_inventory_row, _record_inventory_transaction
+from .inventory import _check_and_create_alert
 
 
 router = APIRouter(prefix="/api/sales", tags=["Sales"])

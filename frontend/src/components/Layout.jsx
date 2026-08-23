@@ -8,7 +8,7 @@ import {
   LayoutDashboard, ShoppingCart, Boxes, FileText, Users,
   UsersRound, Tags, Truck, Database,
   TrendingUp, PieChart, UserMinus, Sparkles, ShieldAlert, LogOut,
-  Settings, Bell, ChevronDown, UsersRound, Tags, Truck, Database,DollarSign
+  Settings, Bell, ChevronDown, DollarSign
 } from 'lucide-react'
 
 const NAV_ITEMS = [

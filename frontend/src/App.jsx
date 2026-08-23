@@ -1,10 +1,9 @@
 import React from 'react'
-import { Routes, Route, Navigate } from 'react-router-dom'
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { useAuth } from './context/AuthContext.jsx'
 import ThemeToggle from './components/ThemeToggle.jsx'
 import LandingPage from './pages/LandingPage.jsx'
 import Layout from './components/Layout.jsx'
-import LandingPage from './pages/LandingPage.jsx'
 import Login from './pages/Login.jsx'
 import Register from './pages/Register.jsx'
 import ForgotPassword from './pages/ForgotPassword.jsx'
@@ -24,11 +23,6 @@ import Suppliers from './pages/Suppliers.jsx'
 import Datasets from './pages/Datasets.jsx'
 import Team from './pages/Team.jsx'
 import Settings from './pages/Settings.jsx'
-import ForgotPassword from './pages/ForgotPassword.jsx'
-import Categories from './pages/Categories.jsx'
-import Suppliers from './pages/Suppliers.jsx'
-import Team from './pages/Team.jsx'
-import Datasets from './pages/Datasets.jsx'
 
 function ProtectedRoute({ children, allowedRoles }) {
   const { user } = useAuth()

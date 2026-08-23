@@ -2,18 +2,16 @@ import os
 import random
 import smtplib
 import datetime as dt
-
 from email.mime.multipart import MIMEMultipart
-import datetime as dt
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, EmailStr
-from sqlalchemy.orm import Session
+from typing import Optional
 from sqlalchemy.orm import Session, joinedload
 
 from .. import models, schemas
 from ..cache import invalidate
 from ..database import get_db
-from ..seed_data import seed_business_demo_data
+
 from ..core.security import (
     hash_password,
     verify_password,
@@ -180,9 +178,6 @@ def register(
         .first()
     )
 
-    # Seed demo data (products, customers, sales, invoices) so a brand-new
-    # business is not an empty dashboard. seed_business_demo_data commits.
-    seed_business_demo_data(db, business)
 
     db.refresh(user)
     return user
