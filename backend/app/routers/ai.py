@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from .. import models
 from ..database import get_db
 from ..deps import get_current_user
+from ..ml.churn import run_churn_prediction
 
 router = APIRouter(prefix="/api/ai", tags=["AI Intelligence"])
 
@@ -156,51 +157,11 @@ def get_customer_segmentation(
 def get_churn_predictions(
     db: Session = Depends(get_db), current_user=Depends(get_current_user)
 ) -> Dict[str, Any]:
-    customers = db.query(models.Customer).all()
-    if not customers:
-        return {"rows": [], "accuracy": 0, "precision": 0, "f1": 0}
-
-    now = dt.datetime.utcnow()
-    rows = []
-
-    for c in customers:
-        last_sale = (
-            db.query(models.Sale)
-            .filter(models.Sale.customer_id == c.id)
-            .order_by(models.Sale.sale_date.desc())
-            .first()
-        )
-
-        days_inactive = (
-            (now - last_sale.sale_date).days
-            if last_sale and last_sale.sale_date
-            else 45
-        )
-
-        if days_inactive > 60:
-            risk = "High"
-            prob = 0.88
-            rec = "Offer 15% discount code & send re-engagement email."
-        elif days_inactive > 30:
-            risk = "Medium"
-            prob = 0.45
-            rec = "Send product recommendations based on past purchases."
-        else:
-            risk = "Low"
-            prob = 0.12
-            rec = "Maintain regular communication & customer support."
-
-        rows.append(
-            {
-                "customer_id": c.id,
-                "customer_name": c.full_name,
-                "risk_category": risk,
-                "churn_probability": prob,
-                "recommendation": rec,
-            }
-        )
-
-    return {"accuracy": 0.91, "precision": 0.88, "f1": 0.89, "rows": rows}
+    # Previously this endpoint returned hardcoded values (0.88 / 0.45 / 0.12
+    # for every High/Medium/Low customer, plus fixed 0.91/0.88/0.89 metrics)
+    # instead of running any real model. It now calls the actual trained
+    # churn model in app/ml/churn.py, scoped to the caller's business.
+    return run_churn_prediction(db, business_id=current_user.business_id)
 
 
 @router.get("/recommendations")
