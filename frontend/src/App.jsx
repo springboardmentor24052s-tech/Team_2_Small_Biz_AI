@@ -1,19 +1,16 @@
-import React from 'react'
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { useAuth } from './context/AuthContext.jsx'
 import ThemeToggle from './components/ThemeToggle.jsx'
-import LandingPage from './pages/LandingPage.jsx'
+import LandingPage from './pages/LandingPage';
 import Layout from './components/Layout.jsx'
 import Login from './pages/Login.jsx'
 import Register from './pages/Register.jsx'
-import ForgotPassword from './pages/ForgotPassword.jsx'
 import Dashboard from './pages/Dashboard.jsx'
 import Sales from './pages/Sales.jsx'
 import Inventory from './pages/Inventory.jsx'
 import Invoices from './pages/Invoices.jsx'
 import Customers from './pages/Customers.jsx'
 import Forecasting from './pages/Forecasting.jsx'
-import RevenuePrediction from './pages/RevenuePrediction.jsx'
 import Segmentation from './pages/Segmentation.jsx'
 import Churn from './pages/Churn.jsx'
 import Recommendations from './pages/Recommendations.jsx'
@@ -23,13 +20,14 @@ import Suppliers from './pages/Suppliers.jsx'
 import Datasets from './pages/Datasets.jsx'
 import Team from './pages/Team.jsx'
 import Settings from './pages/Settings.jsx'
+import ActivityLog from './pages/ActivityLog.jsx'
+import ForgotPassword from "./pages/ForgotPassword.jsx"
 
 function ProtectedRoute({ children, allowedRoles }) {
   const { user } = useAuth()
-  if (!user) return <Navigate to='/login' replace />
-  const userRole = user.role?.role_name || user.role;
-  if (allowedRoles && !allowedRoles.includes(userRole)) {
-    return <Navigate to='/dashboard' replace />
+  if (!user) return <Navigate to="/login" replace />
+  if (allowedRoles && !allowedRoles.includes(user.role)) {
+    return <Navigate to="/dashboard" replace />
   }
   return children
 }
@@ -38,41 +36,55 @@ export default function App() {
   const { user } = useAuth()
   const location = useLocation()
 
+  // Routes where Layout header is NOT present
   const isPublicAuthPage = ['/login', '/register', '/forgot-password'].includes(location.pathname)
 
   return (
-    <div className='min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 transition-colors duration-300'>
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 transition-colors duration-300">
+      {/* Floating Theme Toggle on Login / Register / Forgot Password */}
       {isPublicAuthPage && (
-        <div className='fixed top-5 right-6 z-50'>
+        <div className="fixed top-5 right-6 z-50">
           <ThemeToggle />
         </div>
       )}
 
       <Routes>
-        <Route path='/' element={<LandingPage />} />
-        <Route path='/login' element={user ? <Navigate to='/dashboard' replace /> : <Login />} />
-        <Route path='/register' element={user ? <Navigate to='/dashboard' replace /> : <Register />} />
-        <Route path='/forgot-password' element={user ? <Navigate to='/dashboard' replace /> : <ForgotPassword />} />
+        {/* Public Landing Page */}
+        <Route path="/" element={<LandingPage />} />
 
-        <Route element={<ProtectedRoute><Layout /></ProtectedRoute>}>
-          <Route path='/dashboard' element={<Dashboard />} />
-          <Route path='/sales' element={<Sales />} />
-          <Route path='/inventory' element={<Inventory />} />
-          <Route path='/invoices' element={<Invoices />} />
-          <Route path='/customers' element={<Customers />} />
-          <Route path='/categories' element={<Categories />} />
-          <Route path='/suppliers' element={<Suppliers />} />
-          <Route path='/datasets' element={<Datasets />} />
-          <Route path='/team' element={<ProtectedRoute allowedRoles={['business_owner', 'admin']}><Team /></ProtectedRoute>} />
-          <Route path='/forecasting' element={<ProtectedRoute allowedRoles={['business_owner', 'store_manager', 'admin']}><Forecasting /></ProtectedRoute>} />
-          <Route path='/revenue-prediction'element={<RevenuePrediction />}/>
-          <Route path='/segmentation' element={<Segmentation />} />
-          <Route path='/churn' element={<ProtectedRoute allowedRoles={['business_owner', 'store_manager', 'admin']}><Churn /></ProtectedRoute>} />
-          <Route path='/recommendations' element={<Recommendations />} />
-          <Route path='/anomalies' element={<ProtectedRoute allowedRoles={['business_owner', 'store_manager', 'admin']}><Anomalies /></ProtectedRoute>} />
-          <Route path='/settings' element={<Settings />} />
+        {/* Public Auth Routes */}
+        <Route path="/login" element={user ? <Navigate to="/dashboard" replace /> : <Login />} />
+        <Route path="/register" element={user ? <Navigate to="/dashboard" replace /> : <Register />} />
+        <Route path="/forgot-password" element={user ? <Navigate to="/dashboard" replace /> : <ForgotPassword />} />
+
+        {/* Protected Dashboard App Routes (All share Layout & Header ThemeToggle) */}
+        <Route
+          element={
+            <ProtectedRoute>
+              <Layout />
+            </ProtectedRoute>
+          }
+        >
+          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/sales" element={<Sales />} />
+          <Route path="/inventory" element={<Inventory />} />
+          <Route path="/invoices" element={<Invoices />} />
+          <Route path="/customers" element={<Customers />} />
+          <Route path="/forecasting" element={<ProtectedRoute allowedRoles={['business_owner', 'store_manager', 'admin']}><Forecasting /></ProtectedRoute>} />
+          <Route path="/segmentation" element={<Segmentation />} />
+          <Route path="/churn" element={<ProtectedRoute allowedRoles={['business_owner', 'store_manager', 'admin']}><Churn /></ProtectedRoute>} />
+          <Route path="/recommendations" element={<Recommendations />} />
+          <Route path="/anomalies" element={<ProtectedRoute allowedRoles={['business_owner', 'store_manager', 'admin']}><Anomalies /></ProtectedRoute>} />
+          <Route path="/categories" element={<Categories />} />
+          <Route path="/suppliers" element={<Suppliers />} />
+          <Route path="/datasets" element={<Datasets />} />
+          <Route path="/team" element={<ProtectedRoute allowedRoles={['business_owner', 'admin']}><Team /></ProtectedRoute>} />
+          <Route path="/activity" element={<ProtectedRoute allowedRoles={['business_owner', 'store_manager', 'admin']}><ActivityLog /></ProtectedRoute>} />
+          <Route path="/settings" element={<Settings />} />
         </Route>
-        <Route path='*' element={<Navigate to='/' replace />} />
+
+        {/* Catch-all Wildcard Route */}
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </div>
   )
