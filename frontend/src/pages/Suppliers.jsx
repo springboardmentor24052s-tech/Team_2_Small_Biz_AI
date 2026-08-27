@@ -1,6 +1,6 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState } from 'react'
 import api from '../services/api'
-import { Loading, PageHeader, EmptyState } from '../components/ui.jsx'
+import { Loading, PageHeader } from '../components/ui.jsx'
 import InteractiveTable, { DetailModal } from '../components/InteractiveTable.jsx'
 import { Plus, Trash2, Truck, Mail, Phone, MapPin } from 'lucide-react'
 
@@ -13,17 +13,28 @@ export default function Suppliers() {
   const [selected, setSelected] = useState(null)
   const [form, setForm] = useState({ supplier_name: '', phone: '', email: '', address: '' })
 
-  const load = useCallback(async () => {
-    setLoading(true)
-    try { const res = await api.get('/suppliers/'); setSuppliers(res.data) }
-    catch (err) { setError(err.response?.data?.detail || 'Failed to load suppliers.') }
-    finally { setLoading(false) }
-  }, [])
+  const [refreshKey, setRefreshKey] = useState(0)
 
   useEffect(() => {
-    const init = async () => { await load() }
-    init()
-  }, [load])
+    let active = true
+    const fetchData = async () => {
+      try {
+        const res = await api.get('/suppliers/')
+        if (active) setSuppliers(res.data)
+      } catch (err) {
+        if (active) setError(err.response?.data?.detail || 'Failed to load suppliers.')
+      } finally {
+        if (active) setLoading(false)
+      }
+    }
+    fetchData()
+    return () => { active = false }
+  }, [refreshKey])
+
+  const load = () => {
+    setLoading(true)
+    setRefreshKey(k => k + 1)
+  }
 
   const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value })
 
@@ -51,9 +62,11 @@ export default function Suppliers() {
     { key: 'phone', label: 'Phone', render: (v) => v || '—' },
     { key: 'email', label: 'Email', render: (v) => <span className="text-slate-500 dark:text-slate-400">{v || '—'}</span> },
     { key: 'address', label: 'Address', render: (v) => <span className="text-slate-500 dark:text-slate-400">{v || '—'}</span> },
-    { key: 'actions', label: '', sortable: false, render: (_, row) => (
-      <button onClick={(e) => { e.stopPropagation(); handleDelete(row.id) }} className="text-red-500 hover:text-red-700 p-1"><Trash2 size={14} /></button>
-    )},
+    {
+      key: 'actions', label: '', sortable: false, render: (_, row) => (
+        <button onClick={(e) => { e.stopPropagation(); handleDelete(row.id) }} className="text-red-500 hover:text-red-700 p-1"><Trash2 size={14} /></button>
+      )
+    },
   ]
 
   return (

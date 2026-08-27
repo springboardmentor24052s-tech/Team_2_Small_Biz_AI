@@ -1,3 +1,4 @@
+from email.mime.text import MIMEText
 import os
 import random
 import smtplib
@@ -214,7 +215,6 @@ def login(
     token = create_access_token(
         {
             "sub": str(user.id),
-            "role": role_str,
             "role": user.role.role_name,
         }
     )

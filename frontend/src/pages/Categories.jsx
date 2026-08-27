@@ -1,6 +1,6 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState } from 'react'
 import api from '../services/api'
-import { Loading, PageHeader, EmptyState, Badge } from '../components/ui.jsx'
+import { Loading, PageHeader, Badge } from '../components/ui.jsx'
 import InteractiveTable, { DetailModal } from '../components/InteractiveTable.jsx'
 import { Tags, Plus, Trash2 } from 'lucide-react'
 
@@ -14,17 +14,27 @@ export default function Categories() {
   const [message, setMessage] = useState('')
   const [selected, setSelected] = useState(null)
 
-  const load = useCallback(() => {
-    setLoading(true)
-    Promise.all([api.get('/categories/'), api.get('/inventory/products').catch(() => ({ data: [] }))])
-      .then(([c, p]) => { setCategories(c.data); setProducts(p.data) })
-      .finally(() => setLoading(false))
-  }, [])
+  const [refreshKey, setRefreshKey] = useState(0)
 
   useEffect(() => {
-    const init = async () => { await load() }
-    init()
-  }, [load])
+    let active = true
+    Promise.all([api.get('/categories/'), api.get('/inventory/products').catch(() => ({ data: [] }))])
+      .then(([c, p]) => {
+        if (active) {
+          setCategories(c.data)
+          setProducts(p.data)
+        }
+      })
+      .finally(() => {
+        if (active) setLoading(false)
+      })
+    return () => { active = false }
+  }, [refreshKey])
+
+  const load = () => {
+    setLoading(true)
+    setRefreshKey(k => k + 1)
+  }
 
   const handleCreate = async (e) => {
     e.preventDefault()
@@ -50,11 +60,13 @@ export default function Categories() {
     { key: 'category_name', label: 'Name', render: (v) => <span className="font-medium text-slate-800 dark:text-slate-100">{v}</span> },
     { key: 'description', label: 'Description', render: (v) => <span className="text-slate-500 dark:text-slate-400">{v || '—'}</span> },
     { key: 'product_count', label: 'Products', render: (v) => <Badge tone={v > 0 ? 'blue' : 'slate'}>{v}</Badge> },
-    { key: 'actions', label: '', sortable: false, render: (_, row) => (
-      <button onClick={(e) => { e.stopPropagation(); handleDelete(row.id) }} className="text-red-500 hover:text-red-700 p-1" title="Delete">
-        <Trash2 size={14} />
-      </button>
-    )},
+    {
+      key: 'actions', label: '', sortable: false, render: (_, row) => (
+        <button onClick={(e) => { e.stopPropagation(); handleDelete(row.id) }} className="text-red-500 hover:text-red-700 p-1" title="Delete">
+          <Trash2 size={14} />
+        </button>
+      )
+    },
   ]
 
   const enriched = categories.map(c => ({ ...c, product_count: getCatProductCount(c.category_name) }))
