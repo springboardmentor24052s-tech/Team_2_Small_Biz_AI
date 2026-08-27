@@ -70,13 +70,13 @@ export default function Settings() {
   const [bio, setBio] = useState(user?.bio || '')
   const [dob, setDob] = useState(user?.dob || '')
   const [business, setBusiness] = useState(null)
-  const [avatarMsg, setAvatarMsg] = useState({ type: '', text: '' })
+  const [avatarMsg, setAvatarMsg] = useState(null)
   const [avatarLoading, setAvatarLoading] = useState(false)
   const fileInputRef = useRef(null)
-  const [prefsMsg, setPrefsMsg] = useState({ type: '', text: '' })
+  const [prefsMsg, setPrefsMsg] = useState(null)
   const [prefsLoading, setPrefsLoading] = useState(false)
   const [prevUser, setPrevUser] = useState(user)
-  const [profileMsg, setProfileMsg] = useState({ type: '', text: '' })
+  const [profileMsg, setProfileMsg] = useState(null)
   const [profileLoading, setProfileLoading] = useState(false)
 
   // Password Form State
@@ -85,7 +85,7 @@ export default function Settings() {
   const [confirmPassword, setConfirmPassword] = useState('')
   const [showCurrentPass, setShowCurrentPass] = useState(false)
   const [showNewPass, setShowNewPass] = useState(false)
-  const [passwordMsg, setPasswordMsg] = useState({ type: '', text: '' })
+  const [passwordMsg, setPasswordMsg] = useState(null)
   const [passwordLoading, setPasswordLoading] = useState(false)
 
   // Synchronize state when user object loads without triggering useEffect warnings
@@ -111,7 +111,7 @@ export default function Settings() {
   // Profile Update Handler
   const handleUpdateProfile = async (e) => {
     e.preventDefault()
-    setProfileMsg({ type: '', text: '' })
+    setProfileMsg(null)
     setProfileLoading(true)
 
     try {
@@ -143,7 +143,7 @@ export default function Settings() {
   const handleAvatarUpload = async (e) => {
     const file = e.target.files?.[0]
     if (!file) return
-    setAvatarMsg({ type: '', text: '' })
+    setAvatarMsg(null)
     setAvatarLoading(true)
     try {
       const formData = new FormData()
@@ -167,7 +167,7 @@ export default function Settings() {
   }
 
   const handleAvatarRemove = async () => {
-    setAvatarMsg({ type: '', text: '' })
+    setAvatarMsg(null)
     setAvatarLoading(true)
     try {
       const res = await api.delete('/users/avatar')
@@ -187,7 +187,7 @@ export default function Settings() {
 
   // Preferences Save Handler (shares the profile endpoint)
   const handleSavePreferences = async () => {
-    setPrefsMsg({ type: '', text: '' })
+    setPrefsMsg(null)
     setPrefsLoading(true)
     try {
       const res = await api.put('/auth/profile', {
@@ -217,7 +217,7 @@ export default function Settings() {
   // Password Update Handler
   const handleUpdatePassword = async (e) => {
     e.preventDefault()
-    setPasswordMsg({ type: '', text: '' })
+    setPasswordMsg(null)
 
     if (newPassword !== confirmPassword) {
       setPasswordMsg({ type: 'error', text: 'New passwords do not match.' })
@@ -312,7 +312,7 @@ const roleColor = ROLE_COLORS[user?.role] || ROLE_COLORS.business_owner
               )}
             </div>
 
-            {avatarMsg.text && (
+            {avatarMsg && (
               <div className={`text-[10px] px-2 py-1 rounded ${avatarMsg.type === 'error' ? 'text-red-600 bg-red-50 dark:bg-red-900/20' : 'text-emerald-600 bg-emerald-50 dark:bg-emerald-900/20'}`}>
                 {avatarMsg.text}
               </div>
@@ -353,13 +353,12 @@ const roleColor = ROLE_COLORS[user?.role] || ROLE_COLORS.business_owner
             <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">Profile Information</h3>
           </div>
 
-          {profileMsg.text && (
+          {profileMsg && (
             <div
-              className={`p-3 rounded-lg text-sm ${
-                profileMsg.type === 'success'
-                  ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/60'
-                  : 'bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-800/60'
-              }`}
+              className={`p-3 rounded-lg text-sm ${profileMsg.type === 'success'
+                ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/60'
+                : 'bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-800/60'
+                }`}
             >
               {profileMsg.text}
             </div>
@@ -452,13 +451,12 @@ const roleColor = ROLE_COLORS[user?.role] || ROLE_COLORS.business_owner
               <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">Security & Password</h3>
             </div>
 
-            {passwordMsg.text && (
+            {passwordMsg && (
               <div
-                className={`p-3 rounded-lg text-sm mb-4 ${
-                  passwordMsg.type === 'success'
-                    ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/60'
-                    : 'bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-800/60'
-                }`}
+                className={`p-3 rounded-lg text-sm mb-4 ${passwordMsg.type === 'success'
+                  ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/60'
+                  : 'bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-800/60'
+                  }`}
               >
                 {passwordMsg.text}
               </div>
@@ -645,13 +643,12 @@ const roleColor = ROLE_COLORS[user?.role] || ROLE_COLORS.business_owner
               <Globe size={20} className="text-brand-600" />
               <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">Preferences</h3>
             </div>
-            {prefsMsg.text && (
+            {prefsMsg && (
               <div
-                className={`p-3 rounded-lg text-sm ${
-                  prefsMsg.type === 'success'
-                    ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/60'
-                    : 'bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-800/60'
-                }`}
+                className={`p-3 rounded-lg text-sm ${prefsMsg.type === 'success'
+                  ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/60'
+                  : 'bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-800/60'
+                  }`}
               >
                 {prefsMsg.text}
               </div>
