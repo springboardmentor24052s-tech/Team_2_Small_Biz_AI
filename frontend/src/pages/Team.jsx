@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import api from "../services/api";
 import { PageHeader, ErrorBanner, Loading } from "../components/ui";
@@ -29,6 +29,7 @@ export default function Team() {
         const res = await api.get("/users/");
         setUsers(res.data);
       } catch (err) {
+        console.error("Fetch team members error:", err);
         setError("Failed to fetch team members.");
       } finally {
         setLoading(false);

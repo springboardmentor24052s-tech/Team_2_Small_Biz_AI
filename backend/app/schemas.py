@@ -258,7 +258,7 @@ class CustomerSegmentOut(BaseModel):
     generated_at: dt.datetime
 
 class ForecastOut(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True, protected_namespaces=())
     id: int
     product_id: Optional[int]
     forecast_date: dt.date
@@ -297,3 +297,24 @@ class KPIResponse(BaseModel):
     overdue_invoices: int
     revenue_by_day: List[dict]
     top_products: List[dict]
+
+class NotificationOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    business_id: int
+    type: str
+    title: str
+    message: str
+    level: str
+    link: Optional[str]
+    source_type: Optional[str]
+    source_id: Optional[int]
+    read: bool
+    created_at: dt.datetime
+
+class NotificationListResponse(BaseModel):
+    items: List[NotificationOut]
+    unread_count: int
+
+class UnreadCountResponse(BaseModel):
+    unread_count: int

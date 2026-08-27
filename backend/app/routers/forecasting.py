@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from ml.forecasting import train_sales_forecast
+from app.ml.forecasting import train_sales_forecast
 
 router = APIRouter(
     prefix="/api/forecast",

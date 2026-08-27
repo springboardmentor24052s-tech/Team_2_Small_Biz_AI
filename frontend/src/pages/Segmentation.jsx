@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
   PieChart,
   Pie,
@@ -98,32 +98,6 @@ export default function Segmentation() {
   }
 
   // -----------------------------
-  // Business KPIs
-  // -----------------------------
-
-  const totalCustomers = customers.length
-
-  const totalRevenue = customers.reduce(
-    (sum, customer) => sum + Number(customer.monetary || 0),
-    0
-  )
-
-  const highestValueCustomer = customers.reduce(
-    (max, customer) =>
-      Number(customer.monetary || 0) > Number(max?.monetary || 0)
-        ? customer
-        : max,
-    null
-  )
-
-  const largestSegment = segments.reduce(
-    (largest, segment) =>
-      Number(segment.customer_count || 0) >
-      Number(largest?.customer_count || 0)
-        ? segment
-        : largest,
-    null
-  )
 
   // -----------------------------
   // Chart Data
@@ -146,30 +120,6 @@ export default function Segmentation() {
     }))
 
   // -----------------------------
-  // AI Insight
-  // -----------------------------
-
-  const vipSegment = segments.find(
-    (segment) => segment.segment === 'VIP Champions'
-  )
-
-  const atRiskSegment = segments.find(
-    (segment) => segment.segment === 'At-Risk High Value Customers'
-  )
-
-  let insightTitle = 'AI Segment Insight'
-  let insightText =
-    'Your customers are distributed across multiple behavioral segments. Use the segment groups to personalize offers and retention strategies.'
-
-  if (vipSegment) {
-    insightTitle = 'Your VIP customers are highly valuable'
-    insightText = `${vipSegment.customer_count} VIP Champions generate an average purchase value of ₹${Number(
-      vipSegment.avg_purchase_value || 0
-    ).toLocaleString('en-IN')}. Consider loyalty rewards and personalized offers for this group.`
-  } else if (atRiskSegment) {
-    insightTitle = 'High-value customers may need attention'
-    insightText = `${atRiskSegment.customer_count} customers are classified as At-Risk High Value Customers. Consider targeted retention campaigns before they become inactive.`
-  }
 
   return (
     <div className="space-y-6">
