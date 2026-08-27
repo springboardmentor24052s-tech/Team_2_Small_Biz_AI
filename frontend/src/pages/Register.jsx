@@ -12,12 +12,7 @@ const ROLES = [
   { value: 'admin', label: 'Admin', icon: Shield, color: 'purple' },
 ];
 
-const ROLE_PERMISSIONS = {
-  business_owner: ['Dashboard', 'Sales', 'Inventory', 'Invoices', 'Customers', 'Categories', 'Suppliers', 'Team', 'Datasets', 'Forecasting', 'Churn', 'Anomalies', 'Recommendations', 'Segmentation', 'Settings'],
-  store_manager: ['Dashboard', 'Sales', 'Inventory', 'Invoices', 'Customers', 'Categories', 'Suppliers', 'Forecasting', 'Churn', 'Anomalies', 'Recommendations', 'Segmentation', 'Settings'],
-  sales_executive: ['Dashboard', 'Sales', 'Inventory', 'Invoices', 'Customers', 'Segmentation', 'Recommendations', 'Settings'],
-  admin: ['Dashboard', 'Sales', 'Inventory', 'Invoices', 'Customers', 'Categories', 'Suppliers', 'Team', 'Datasets', 'Forecasting', 'Churn', 'Anomalies', 'Recommendations', 'Segmentation', 'Settings'],
-};
+
 
 export default function Register() {
   const navigate = useNavigate();

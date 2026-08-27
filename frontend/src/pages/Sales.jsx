@@ -23,7 +23,10 @@ export default function Sales() {
       .finally(() => setLoading(false))
   }, [])
 
-  useEffect(() => { load() }, [load])
+  useEffect(() => {
+    const init = async () => { await load() }
+    init()
+  }, [load])
 
   const handleProductChange = (e) => {
     const pid = e.target.value
