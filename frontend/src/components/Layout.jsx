@@ -8,26 +8,26 @@ import {
   LayoutDashboard, ShoppingCart, Boxes, FileText, Users,
   UsersRound, Tags, Truck, Database,
   TrendingUp, PieChart, UserMinus, Sparkles, ShieldAlert, LogOut,
-  Settings, Bell, ChevronDown, DollarSign
+  Settings, Bell, ChevronDown, CheckCheck, ClipboardList,
 } from 'lucide-react'
 
 const NAV_ITEMS = [
-  { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: null },
-  { to: '/sales', label: 'Sales', icon: ShoppingCart, roles: null },
-  { to: '/inventory', label: 'Inventory', icon: Boxes, roles: null },
-  { to: '/invoices', label: 'Invoices', icon: FileText, roles: null },
-  { to: '/customers', label: 'Customers', icon: Users, roles: null },
-  { to: '/categories', label: 'Categories', icon: Tags, roles: ['business_owner', 'store_manager', 'admin'] },
-  { to: '/suppliers', label: 'Suppliers', icon: Truck, roles: ['business_owner', 'store_manager', 'admin'] },
-  { to: '/team', label: 'Team', icon: UsersRound, roles: ['business_owner', 'admin'] },
-  { to: '/datasets', label: 'Datasets', icon: Database, roles: ['business_owner', 'admin'] },
-  { to: '/forecasting', label: 'Forecasting', icon: TrendingUp, roles: ['business_owner', 'store_manager', 'admin'] },
-  { to: '/revenue-prediction', label: 'Revenue Prediction', icon: DollarSign, roles: ['business_owner', 'store_manager', 'admin'] },
-  { to: '/segmentation', label: 'Segmentation', icon: PieChart, roles: null },
-  { to: '/churn', label: 'Churn Risk', icon: UserMinus, roles: ['business_owner', 'store_manager', 'admin'] },
-  { to: '/recommendations', label: 'Recommendations', icon: Sparkles, roles: null },
-  { to: '/anomalies', label: 'Anomaly Alerts', icon: ShieldAlert, roles: ['business_owner', 'store_manager', 'admin'] },
-  { to: '/settings', label: 'Settings', icon: Settings, roles: null },
+  { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { to: '/sales', label: 'Sales', icon: ShoppingCart },
+  { to: '/inventory', label: 'Inventory', icon: Boxes },
+  { to: '/invoices', label: 'Invoices', icon: FileText },
+  { to: '/customers', label: 'Customers', icon: Users },
+  { to: '/team', label: 'Team', icon: UsersRound },
+  { to: '/categories', label: 'Categories', icon: Tags },
+  { to: '/suppliers', label: 'Suppliers', icon: Truck },
+  { to: '/datasets', label: 'Datasets', icon: Database },
+  { to: '/forecasting', label: 'Forecasting', icon: TrendingUp },
+  { to: '/segmentation', label: 'Segmentation', icon: PieChart },
+  { to: '/churn', label: 'Churn Risk', icon: UserMinus },
+  { to: '/recommendations', label: 'Recommendations', icon: Sparkles },
+  { to: '/anomalies', label: 'Anomaly Alerts', icon: ShieldAlert },
+  { to: '/activity', label: 'Activity Log', icon: ClipboardList },
+  { to: '/settings', label: 'Settings', icon: Settings },
 ]
 
 const ROLE_LABELS = {
@@ -37,13 +37,30 @@ const ROLE_LABELS = {
   admin: 'System Administrator',
 }
 
-// Pages restricted by role (pre-dev parity). Pages not listed are visible to
-// every logged-in role.
-const ROLE_RESTRICTED = {
-  '/team': ['business_owner', 'admin'],
-  '/forecasting': ['business_owner', 'store_manager', 'admin'],
-  '/churn': ['business_owner', 'store_manager', 'admin'],
-  '/anomalies': ['business_owner', 'store_manager', 'admin'],
+// Pages visible to each role — if a page is missing from a role's list,
+// it is hidden from the sidebar for that role.
+const ROLE_PAGES = {
+  business_owner: [
+    '/dashboard', '/sales', '/inventory', '/invoices', '/customers',
+    '/categories', '/suppliers', '/team', '/datasets',
+    '/forecasting', '/segmentation', '/churn', '/recommendations',
+    '/anomalies', '/activity', '/settings',
+  ],
+  store_manager: [
+    '/dashboard', '/sales', '/inventory', '/invoices', '/customers',
+    '/categories', '/suppliers', '/forecasting', '/segmentation',
+    '/churn', '/recommendations', '/anomalies', '/activity', '/settings',
+  ],
+  sales_executive: [
+    '/dashboard', '/sales', '/inventory', '/invoices', '/customers',
+    '/segmentation', '/recommendations', '/settings',
+  ],
+  admin: [
+    '/dashboard', '/sales', '/inventory', '/invoices', '/customers',
+    '/categories', '/suppliers', '/team', '/datasets',
+    '/forecasting', '/segmentation', '/churn', '/recommendations',
+    '/anomalies', '/activity', '/settings',
+  ],
 }
 
 const NOTIF_META = {
@@ -86,16 +103,10 @@ function NotificationBell() {
 
   useEffect(() => {
     const handleClick = (e) => {
-      if (ref.current && !ref.current.contains(e.target)) {
-        setOpen(false)
-      }
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false)
     }
-
     document.addEventListener('mousedown', handleClick)
-
-    return () => {
-      document.removeEventListener('mousedown', handleClick)
-    }
+    return () => document.removeEventListener('mousedown', handleClick)
   }, [])
 
   const toggleDropdown = async () => {
@@ -158,18 +169,63 @@ function NotificationBell() {
       </button>
 
       {open && (
-        <div className="absolute right-0 mt-2 w-72 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg shadow-lg py-2 z-50 max-h-80 overflow-y-auto">
-          <p className="px-4 py-1 text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase">Notifications</p>
-          {alerts.length === 0 ? (
-            <p className="px-4 py-3 text-sm text-slate-500 dark:text-slate-400">No alerts right now.</p>
-          ) : (
-            alerts.map((a) => (
-              <div key={a.id} className="px-4 py-2 border-t border-slate-100 dark:border-slate-800 text-sm text-slate-600 dark:text-slate-300">
-                <p className="font-semibold">{a.title}</p>
-                <p className="text-xs text-slate-500 mt-0.5">{a.description}</p>
-              </div>
-            ))
-          )}
+        <div className="absolute right-0 mt-2 w-80 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg shadow-lg z-50 flex flex-col max-h-[28rem]">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 dark:border-slate-800">
+            <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">
+              Notifications
+              {unread > 0 && <span className="ml-2 text-xs font-bold text-white bg-red-500 rounded-full px-1.5 py-0.5">{unread}</span>}
+            </p>
+            {unread > 0 && (
+              <button
+                onClick={markAllRead}
+                className="flex items-center gap-1 text-xs font-medium text-brand-600 dark:text-brand-400 hover:text-brand-700 dark:hover:text-brand-300"
+              >
+                <CheckCheck size={14} /> Mark all read
+              </button>
+            )}
+          </div>
+
+          <div className="overflow-y-auto flex-1">
+            {loading ? (
+              <p className="px-4 py-8 text-center text-sm text-slate-400 dark:text-slate-500">Loading...</p>
+            ) : items.length === 0 ? (
+              <p className="px-4 py-10 text-center text-sm text-slate-500 dark:text-slate-400">
+                You're all caught up 🎉
+              </p>
+            ) : (
+              items.map((n) => {
+                const meta = NOTIF_META[n.type] || { icon: Bell, color: 'text-slate-500', label: n.type }
+                const Icon = meta.icon
+                return (
+                  <button
+                    key={n.id}
+                    onClick={() => handleItemClick(n)}
+                    className={`w-full flex items-start gap-3 px-4 py-3 text-left border-b border-slate-100 dark:border-slate-800 transition-colors ${
+                      n.read
+                        ? 'hover:bg-slate-50 dark:hover:bg-slate-800/50'
+                        : 'bg-brand-50/60 dark:bg-brand-950/20 hover:bg-brand-50 dark:hover:bg-brand-950/40'
+                    }`}
+                  >
+                    <span className={`mt-0.5 shrink-0 ${meta.color}`}>
+                      <Icon size={18} />
+                    </span>
+                    <span className="flex-1 min-w-0">
+                      <span className="flex items-center gap-2">
+                        <span className={`text-sm font-semibold ${n.read ? 'text-slate-600 dark:text-slate-300' : 'text-slate-800 dark:text-slate-100'}`}>
+                          {n.title}
+                        </span>
+                        {!n.read && <span className="w-2 h-2 rounded-full bg-red-500 shrink-0" />}
+                      </span>
+                      <span className="block text-xs text-slate-500 dark:text-slate-400 mt-0.5 truncate">{n.message}</span>
+                      <span className="block text-[11px] text-slate-400 dark:text-slate-500 mt-1">
+                        {meta.label} · {timeAgo(n.created_at)}
+                      </span>
+                    </span>
+                  </button>
+                )
+              })
+            )}
+          </div>
         </div>
       )}
     </div>
@@ -183,16 +239,10 @@ function ProfileMenu({ user, onLogout }) {
 
   useEffect(() => {
     const handleClick = (e) => {
-      if (ref.current && !ref.current.contains(e.target)) {
-        setOpen(false)
-      }
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false)
     }
-
     document.addEventListener('mousedown', handleClick)
-
-    return () => {
-      document.removeEventListener('mousedown', handleClick)
-    }
+    return () => document.removeEventListener('mousedown', handleClick)
   }, [])
 
   return (
@@ -201,7 +251,6 @@ function ProfileMenu({ user, onLogout }) {
         <Avatar user={user} size="sm" />
         <ChevronDown size={16} className="text-slate-400 dark:text-slate-500" />
       </button>
-
       {open && (
         <div className="absolute right-0 mt-2 w-52 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg shadow-lg py-1 z-50">
           <div className="px-4 py-2 border-b border-slate-100 dark:border-slate-800">
@@ -229,10 +278,8 @@ function ProfileMenu({ user, onLogout }) {
 export default function Layout() {
   const { user, logout } = useAuth()
 
-  const visibleItems = NAV_ITEMS.filter((item) => {
-    const allowed = ROLE_RESTRICTED[item.to]
-    return !allowed || allowed.includes(user?.role)
-  })
+  const allowedPages = ROLE_PAGES[user?.role] || ROLE_PAGES.business_owner
+  const visibleItems = NAV_ITEMS.filter((item) => allowedPages.includes(item.to))
   const today = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric', weekday: 'long' })
 
   const handleLogout = () => {
@@ -240,17 +287,15 @@ export default function Layout() {
   }
 
   return (
-    <div className="flex h-screen bg-slate-50 dark:bg-slate-950">
-      {/* Sidebar */}
-      <aside className="hidden md:flex w-64 shrink-0 bg-slate-900 text-white flex-col">
-        <div className="px-6 py-5 border-b border-white/10">
-          <h1 className="text-xl font-bold">MarketMind AI</h1>
-          <p className="text-xs text-slate-400 mt-1">
-            Small Business Intelligence
-          </p>
+    <div className="flex h-screen overflow-hidden bg-slate-50 dark:bg-slate-950 transition-colors duration-300">
+      {/* Sidebar with Dark Mode Theme Support */}
+      <aside className="w-64 bg-brand-900 dark:bg-slate-900 text-white flex flex-col shrink-0 h-screen border-r border-transparent dark:border-slate-800 transition-colors duration-300">
+        <div className="px-6 py-5 border-b border-white/10 dark:border-slate-800 shrink-0">
+          <h1 className="text-xl font-bold tracking-tight text-white">MarketMind AI</h1>
+          <p className="text-xs text-brand-100/70 dark:text-slate-400 mt-1">Sales Intelligence Platform</p>
         </div>
-        <nav className="flex-1 overflow-y-auto px-4 py-6 space-y-1">
-          {NAV_ITEMS.filter(item => !item.roles || item.roles.includes(user?.role?.role_name || user?.role)).map(({ to, label, icon: Icon }) => (
+        <nav className="sidebar-scroll flex-1 overflow-y-auto py-4 px-3 space-y-1">
+          {visibleItems.map(({ to, label, icon: Icon }) => (
             <NavLink
               key={to}
               to={to}
@@ -268,8 +313,13 @@ export default function Layout() {
           ))}
         </nav>
         <div className="px-4 py-4 border-t border-white/10 dark:border-slate-800 shrink-0">
-          <p className="text-sm font-semibold text-white">{user?.full_name}</p>
-          <p className="text-xs text-brand-100/70 dark:text-slate-400">{ROLE_LABELS[user?.role?.role_name || user?.role] || user?.role?.role_name || user?.role}</p>
+          <div className="flex items-center gap-3">
+            <Avatar user={user} size="sm" />
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-white truncate">{user?.full_name}</p>
+              <p className="text-xs text-brand-100/70 dark:text-slate-400">{ROLE_LABELS[user?.role] || user?.role}</p>
+            </div>
+          </div>
           <button
             onClick={handleLogout}
             className="mt-3 flex items-center gap-2 text-xs text-brand-100/80 dark:text-slate-400 hover:text-white dark:hover:text-slate-200 transition-colors"
@@ -283,18 +333,10 @@ export default function Layout() {
       <div className="flex-1 flex flex-col h-screen overflow-hidden">
         <header className="h-16 shrink-0 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 flex items-center justify-end px-6 md:px-8 z-10 transition-colors duration-300">
           <div className="flex items-center gap-4">
-            <span className="text-sm text-slate-500 dark:text-slate-400 hidden sm:block">
-              {today}
-            </span>
-
+            <span className="text-sm text-slate-500 dark:text-slate-400 hidden sm:block">{today}</span>
             <ThemeToggle />
-
             <NotificationBell />
-
-            <ProfileMenu
-              user={user}
-              onLogout={handleLogout}
-            />
+            <ProfileMenu user={user} onLogout={handleLogout} />
           </div>
         </header>
 
