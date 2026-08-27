@@ -26,7 +26,8 @@ export default function Datasets() {
   }, [])
 
   useEffect(() => {
-    load()
+    const init = async () => { await load() }
+    init()
   }, [load])
 
   if (loading) {

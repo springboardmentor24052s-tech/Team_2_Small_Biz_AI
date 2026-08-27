@@ -213,8 +213,8 @@ const historicalAverage =
   const TrendIcon =
     TREND_ICON[trend] || Minus
   
-  let forecastInsight = ''
-let forecastInsightTitle = ''
+  let forecastInsight;
+  let forecastInsightTitle;
 
 if (trend === 'increasing') {
   forecastInsightTitle = 'Sales are expected to increase'

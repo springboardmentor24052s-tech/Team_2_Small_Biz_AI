@@ -19,7 +19,10 @@ export default function Invoices() {
       .finally(() => setLoading(false))
   }, [])
 
-  useEffect(() => { load() }, [load])
+  useEffect(() => {
+    const init = async () => { await load() }
+    init()
+  }, [load])
 
   const markPaid = async (id) => {
     try { await api.patch(`/invoices/${id}/status`, { status: 'paid' }); load() }

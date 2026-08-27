@@ -20,7 +20,10 @@ export default function Customers() {
       .finally(() => setLoading(false))
   }, [])
 
-  useEffect(() => { load() }, [load])
+  useEffect(() => {
+    const init = async () => { await load() }
+    init()
+  }, [load])
 
   const handleSubmit = async (e) => {
     e.preventDefault(); setError(null)
@@ -30,11 +33,7 @@ export default function Customers() {
     } catch (err) { setError(err.response?.data?.detail || 'Failed to add customer.') }
   }
 
-  const handleDelete = async (id) => {
-    if (!window.confirm('Delete this customer?')) return
-    try { await api.delete(`/customers/${id}`); load() }
-    catch (err) { setError(err.response?.data?.detail || 'Failed to delete customer.') }
-  }
+
 
   if (loading) return <Loading label="Loading customers..." />
 

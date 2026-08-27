@@ -299,7 +299,24 @@ const roleColor = ROLE_COLORS[user?.role] || ROLE_COLORS.business_owner
                 onChange={handleAvatarUpload}
                 className="hidden"
               />
+              {user?.avatar_url && (
+                <button
+                  type="button"
+                  onClick={handleAvatarRemove}
+                  disabled={avatarLoading}
+                  title="Remove photo"
+                  className="absolute -bottom-2 -right-2 p-1.5 rounded-full bg-white dark:bg-slate-800 text-red-500 hover:bg-red-50 dark:hover:bg-red-950 border border-slate-200 dark:border-slate-700 shadow-sm transition-colors disabled:opacity-50"
+                >
+                  <Trash2 size={14} />
+                </button>
+              )}
             </div>
+
+            {avatarMsg.text && (
+              <div className={`text-[10px] px-2 py-1 rounded ${avatarMsg.type === 'error' ? 'text-red-600 bg-red-50 dark:bg-red-900/20' : 'text-emerald-600 bg-emerald-50 dark:bg-emerald-900/20'}`}>
+                {avatarMsg.text}
+              </div>
+            )}
 
             <div className="flex items-center gap-1.5">
               {Object.entries(AVATAR_COLORS).map(([key, cls]) => (

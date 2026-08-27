@@ -21,8 +21,8 @@ export default function Suppliers() {
   }, [])
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    load()
+    const init = async () => { await load() }
+    init()
   }, [load])
 
   const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value })

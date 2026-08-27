@@ -21,7 +21,10 @@ export default function Categories() {
       .finally(() => setLoading(false))
   }, [])
 
-  useEffect(() => { load() }, [load])
+  useEffect(() => {
+    const init = async () => { await load() }
+    init()
+  }, [load])
 
   const handleCreate = async (e) => {
     e.preventDefault()
