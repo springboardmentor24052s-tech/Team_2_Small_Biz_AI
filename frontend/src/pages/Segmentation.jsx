@@ -230,24 +230,12 @@ export default function Segmentation() {
                 </div>
                 <div className="text-right text-sm">
                   <p className="font-semibold text-slate-800 dark:text-slate-100">
-                    ₹{(s.avg_purchase_value ?? 0).toLocaleString('en-IN')}
+                    ₹{Number(s.avg_purchase_value || 0).toLocaleString('en-IN')}
+                  </p>
+                  <p className="text-xs text-slate-400 dark:text-slate-500">
+                    avg. {s.avg_purchase_frequency || 0} orders
                   </p>
                 </div>
-
-                <div className="text-right text-sm">
-
-                  <p className="font-semibold text-slate-800">
-                    ₹{Number(
-                      segment.avg_purchase_value || 0
-                    ).toLocaleString('en-IN')}
-                  </p>
-
-                  <p className="text-xs text-slate-400">
-                    avg. {segment.avg_purchase_frequency} orders
-                  </p>
-
-                </div>
-
               </div>
             ))}
 
@@ -406,27 +394,12 @@ export default function Segmentation() {
                 <td className="py-2 pr-4">
                   <Badge tone={SEGMENT_TONE[c.segment] || 'slate'}>{c.segment}</Badge>
                 </td>
-
-                <td className="py-3 pr-4">
-                  <Badge
-                    tone={
-                      SEGMENT_TONE[customer.segment] || 'slate'
-                    }
-                  >
-                    {customer.segment}
-                  </Badge>
+                <td className="py-2 pr-4">
+                  {c.frequency ?? '—'}
                 </td>
-
-                <td className="py-3 pr-4">
-                  {customer.frequency ?? '—'}
+                <td className="py-2 pr-4 font-medium">
+                  ₹{Number(c.monetary || 0).toLocaleString('en-IN')}
                 </td>
-
-                <td className="py-3 pr-4 font-medium">
-                  ₹{Number(
-                    customer.monetary || 0
-                  ).toLocaleString('en-IN')}
-                </td>
-
               </tr>
             ))}
 

@@ -20,7 +20,10 @@ export default function Suppliers() {
     finally { setLoading(false) }
   }, [])
 
-  useEffect(() => { load() }, [load])
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    load()
+  }, [load])
 
   const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value })
 

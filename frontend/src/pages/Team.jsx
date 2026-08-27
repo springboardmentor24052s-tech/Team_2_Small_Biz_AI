@@ -23,20 +23,19 @@ export default function Team() {
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        setLoading(true);
+        const res = await api.get("/users/");
+        setUsers(res.data);
+      } catch (err) {
+        setError("Failed to fetch team members.");
+      } finally {
+        setLoading(false);
+      }
+    };
     fetchUsers();
   }, []);
-
-  const fetchUsers = async () => {
-    try {
-      setLoading(true);
-      const res = await api.get("/users/");
-      setUsers(res.data);
-    } catch (err) {
-      setError("Failed to fetch team members.");
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleInvite = async (e) => {
     e.preventDefault();
