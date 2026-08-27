@@ -1,4 +1,5 @@
 import os
+import threading
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
@@ -18,8 +19,7 @@ models.Base.metadata.create_all(bind=engine)
 ensure_business_id_columns(engine)
 from .routers import (
     auth, customers, inventory, sales, invoices, analytics, 
-    categories, suppliers, datasets, users, ai, revenue, notifications,
-    forecasting, segmentation
+    categories, suppliers, datasets, users, ai, revenue, notifications
 )
 
 app = FastAPI(
@@ -51,8 +51,6 @@ app.include_router(datasets.router)
 app.include_router(users.router)
 app.include_router(ai.router)
 app.include_router(revenue.router)
-app.include_router(forecasting.router)
-app.include_router(segmentation.router)
 app.include_router(notifications.router)
 
 

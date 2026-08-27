@@ -349,6 +349,20 @@ def upload_products_csv(
             skipped += 1
             continue
 
+        stock_qty = 0
+        if "stock_quantity" in df.columns and pd.notna(row.get("stock_quantity")):
+            try:
+                stock_qty = int(float(row["stock_quantity"]))
+            except (ValueError, TypeError):
+                pass
+
+        reorder = 10
+        if "reorder_level" in df.columns and pd.notna(row.get("reorder_level")):
+            try:
+                reorder = int(float(row["reorder_level"]))
+            except (ValueError, TypeError):
+                pass
+
         category_id = None
         if "category_name" in df.columns and pd.notna(row.get("category_name")):
             cat_name = str(row["category_name"]).strip()

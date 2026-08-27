@@ -43,6 +43,9 @@ def predict_customer_churn() -> Dict[str, Any]:
         "results": high_risk,
         "metrics": {"total_high_risk": len(high_risk), "accuracy": 0.89}
     }
+import warnings
+warnings.filterwarnings("ignore", message=".*Trying to unpickle estimator.*")
+
 import joblib
 import os
 import pandas as pd

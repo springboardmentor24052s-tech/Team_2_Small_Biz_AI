@@ -352,3 +352,34 @@ class AnomalyAlert(Base):
     score = Column(Float, default=0.0)
     created_at = Column(DateTime, default=dt.datetime.utcnow)
     related_id = Column(Integer, nullable=True)
+
+class Notification(Base):
+    __tablename__ = "notifications"
+
+    id = Column(Integer, primary_key=True, index=True)
+    business_id = Column(Integer, ForeignKey("businesses.id"), nullable=False)
+    type = Column(String, nullable=False)
+    title = Column(String, nullable=False)
+    message = Column(Text, nullable=False)
+    level = Column(String, default="info")
+    link = Column(String, nullable=True)
+    source_type = Column(String, nullable=True)
+    source_id = Column(Integer, nullable=True)
+    read = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=dt.datetime.utcnow)
+
+    business = relationship("Business", back_populates="notifications")
+
+class InventoryAlert(Base):
+    __tablename__ = "inventory_alerts"
+
+    id = Column(Integer, primary_key=True, index=True)
+    business_id = Column(Integer, ForeignKey("businesses.id"), nullable=False)
+    product_id = Column(Integer, ForeignKey("products.id"), nullable=False)
+    message = Column(Text, nullable=False)
+    level = Column(String, default="warning")
+    resolved = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=dt.datetime.utcnow)
+
+    business = relationship("Business", back_populates="inventory_alerts")
+    product = relationship("Product")
