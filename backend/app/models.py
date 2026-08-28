@@ -32,10 +32,8 @@ class Business(Base):
     suppliers = relationship("Supplier", back_populates="business")
     products = relationship("Product", back_populates="business")
     sales = relationship("Sale", back_populates="business")
-    invoices = relationship("Invoice", back_populates="business")
     forecasts = relationship("Forecast", back_populates="business")
     inventory_alerts = relationship("InventoryAlert", back_populates="business")
-    anomaly_alerts = relationship("AnomalyAlert", back_populates="business")
     uploaded_datasets = relationship("UploadedDataset", back_populates="business")
     notifications = relationship("Notification", back_populates="business")
 
@@ -249,6 +247,8 @@ class UploadedDataset(Base):
     invalid_records = Column(Integer, default=0)
 
     user = relationship("User", back_populates="uploaded_datasets")
+    business = relationship("Business", back_populates="uploaded_datasets")
+
 
 
 class Alert(Base):
@@ -263,7 +263,7 @@ class Alert(Base):
     is_read = Column(Boolean, default=False)
     created_at = Column(DateTime, default=dt.datetime.utcnow)
     
-    business = relationship("Business", back_populates="alerts")
+    business = relationship("Business")
 
 
 class Anomaly(Base):
@@ -280,7 +280,7 @@ class Anomaly(Base):
 
     business_id = Column(Integer, ForeignKey("businesses.id"), nullable=True)
 
-    business = relationship("Business", back_populates="inventory_alerts")
+    business = relationship("Business")
 
 
 # --- Phase 2: AI Tables ---

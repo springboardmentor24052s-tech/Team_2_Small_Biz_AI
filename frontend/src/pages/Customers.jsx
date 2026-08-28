@@ -11,7 +11,9 @@ export default function Customers() {
   const [showForm, setShowForm] = useState(false)
   const [error, setError] = useState(null)
   const [selected, setSelected] = useState(null)
-  const [form, setForm] = useState({ name: '', email: '', phone: '' })
+  const [form, setForm] = useState({ full_name: '', email: '', phone: '' })
+  const [recommendations, setRecommendations] = useState(null)
+  const [loadingRecs, setLoadingRecs] = useState(false)
 
   const load = useCallback(() => {
     Promise.all([api.get('/customers/'), api.get('/sales/')])
@@ -29,9 +31,21 @@ export default function Customers() {
     e.preventDefault(); setError(null)
     try {
       await api.post('/customers/', form)
-      setForm({ name: '', email: '', phone: '' }); setShowForm(false); load()
+      setForm({ full_name: '', email: '', phone: '' }); setShowForm(false); load()
     } catch (err) { setError(err.response?.data?.detail || 'Failed to add customer.') }
   }
+
+  useEffect(() => {
+    if (selected?.id) {
+      setLoadingRecs(true)
+      api.get(`/ai/recommendations/customer/${selected.id}`)
+        .then(res => setRecommendations(res.data.recommendations))
+        .catch(err => console.error("Recs error", err))
+        .finally(() => setLoadingRecs(false))
+    } else {
+      setRecommendations(null)
+    }
+  }, [selected?.id])
 
 
 
@@ -39,12 +53,15 @@ export default function Customers() {
 
   const getCustomerStats = (cid) => {
     const cSales = sales.filter(s => s.customer_id === cid)
-    const totalSpent = cSales.reduce((sum, s) => sum + (s.total_amount || 0), 0)
+    const totalSpent = cSales.reduce((sum, s) => {
+      const saleTotal = s.total_amount > 0 ? s.total_amount : (s.sale_items?.reduce((itemSum, item) => itemSum + (item.total || 0), 0) || 0);
+      return sum + saleTotal;
+    }, 0)
     return { orderCount: cSales.length, totalSpent }
   }
 
   const columns = [
-    { key: 'name', label: 'Name', render: (v) => <span className="font-medium text-slate-800 dark:text-slate-100">{v}</span> },
+    { key: 'full_name', label: 'Name', render: (v) => <span className="font-medium text-slate-800 dark:text-slate-100">{v}</span> },
     { key: 'email', label: 'Email', render: (v) => <span className="text-slate-500 dark:text-slate-400">{v || '—'}</span> },
     { key: 'phone', label: 'Phone' },
     { key: 'orders', label: 'Orders', render: (v) => <Badge tone={v > 0 ? 'blue' : 'slate'}>{v}</Badge> },
@@ -77,7 +94,7 @@ export default function Customers() {
         <div className="card mb-6">
           <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
             <div><label className="text-xs font-medium text-slate-600 dark:text-slate-300">Name *</label>
-              <input type="text" className="input mt-1" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Full name" required /></div>
+              <input type="text" className="input mt-1" value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} placeholder="Full name" required /></div>
             <div><label className="text-xs font-medium text-slate-600 dark:text-slate-300">Email</label>
               <input type="email" className="input mt-1" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="email@example.com" /></div>
             <div><label className="text-xs font-medium text-slate-600 dark:text-slate-300">Phone</label>
@@ -88,14 +105,14 @@ export default function Customers() {
       )}
 
       <div className="card">
-        <InteractiveTable data={enriched} columns={columns} searchableKeys={['name', 'email', 'phone']}
+        <InteractiveTable data={enriched} columns={columns} searchableKeys={['full_name', 'email', 'phone']}
           onRowClick={setSelected} emptyMessage="No customers found." />
       </div>
 
-      <DetailModal title={selected?.name || ''} subtitle="Customer Profile" onClose={() => setSelected(null)}>
+      <DetailModal title={selected?.full_name || ''} subtitle="Customer Profile" onClose={() => setSelected(null)}>
         {selected && (
           <div>
-            <DetailModal.Row label="Name" value={selected.name} icon={Users} tone="brand" />
+            <DetailModal.Row label="Name" value={selected.full_name} icon={Users} tone="brand" />
             <DetailModal.Row label="Email" value={selected.email || 'Not provided'} icon={Mail} />
             <DetailModal.Row label="Phone" value={selected.phone || 'Not provided'} icon={Phone} />
             <DetailModal.Row label="Total Orders" value={selected.orders} icon={ShoppingCart} tone="blue" />
@@ -110,6 +127,26 @@ export default function Customers() {
               ))}
               {sales.filter(s => s.customer_id === selected.id).length === 0 && (
                 <p className="text-xs text-slate-400 py-2">No sales for this customer.</p>
+              )}
+            </DetailModal.Section>
+
+            <DetailModal.Section title="✨ AI Recommendations">
+              {loadingRecs ? (
+                <p className="text-xs text-slate-400 py-2 animate-pulse">Analyzing purchase history...</p>
+              ) : recommendations && recommendations.length > 0 ? (
+                <div className="grid grid-cols-1 gap-2 mt-2">
+                  {recommendations.map(r => (
+                    <div key={r.product_id} className="flex justify-between items-center p-2 rounded-lg bg-gradient-to-r from-indigo-50 to-white dark:from-slate-800 dark:to-slate-900 border border-indigo-100 dark:border-indigo-900/30 shadow-sm hover:shadow transition-all duration-300 transform hover:-translate-y-0.5">
+                      <div className="flex flex-col">
+                        <span className="font-semibold text-sm text-indigo-900 dark:text-indigo-100">{r.name}</span>
+                        <span className="text-[10px] text-indigo-500 uppercase tracking-wider font-semibold">Recommended Match</span>
+                      </div>
+                      <span className="font-bold text-indigo-700 dark:text-indigo-300">₹{r.price}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs text-slate-400 py-2">No recommendations available.</p>
               )}
             </DetailModal.Section>
           </div>

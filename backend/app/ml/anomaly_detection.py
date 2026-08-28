@@ -495,11 +495,11 @@ def detect_customer_anomalies(customers: List[Any], sales: List[Any]) -> List[An
             results.append(AnomalyResult(
                 id=c.id, category="customer", severity=severity, anomaly_type="zscore",
                 confidence=min(0.95, 0.7 + abs(z) * 0.05),
-                description=f"Customer '{c.name or c.full_name or f'#{c.id}'}' total spend ₹{total:,.2f} is {abs(z):.1f}σ from average (₹{np.mean(totals):,.2f})",
+                description=f"Customer '{getattr(c, 'name', c.full_name) or f'#{c.id}'}' total spend ₹{total:,.2f} is {abs(z):.1f}σ from average (₹{np.mean(totals):,.2f})",
                 details={"total_spent": total, "orders": count, "z_score": round(z, 2), "avg_customer_spend": round(float(np.mean(totals)), 2)},
                 created_at=dt.datetime.utcnow().isoformat(),
                 suggested_action="Review this customer's purchase pattern.",
-                affected_entity=f"Customer '{c.name or c.full_name or f'#{c.id}'}'",
+                affected_entity=f"Customer '{getattr(c, 'name', c.full_name) or f'#{c.id}'}'",
             ))
 
     avgs = [t[3] for t in customer_totals if t[2] > 1]
@@ -512,11 +512,11 @@ def detect_customer_anomalies(customers: List[Any], sales: List[Any]) -> List[An
                 results.append(AnomalyResult(
                     id=c.id, category="customer", severity="medium", anomaly_type="iqr",
                     confidence=0.7,
-                    description=f"Customer '{c.name or c.full_name or f'#{c.id}'}' avg order ₹{avg:,.2f} outside normal range [₹{q1:,.2f} – ₹{q3:,.2f}]",
+                    description=f"Customer '{getattr(c, 'name', c.full_name) or f'#{c.id}'}' avg order ₹{avg:,.2f} outside normal range [₹{q1:,.2f} – ₹{q3:,.2f}]",
                     details={"avg_order": avg, "orders": count, "q1": round(q1, 2), "q3": round(q3, 2)},
                     created_at=dt.datetime.utcnow().isoformat(),
                     suggested_action="Investigate unusual ordering pattern.",
-                    affected_entity=f"Customer '{c.name or c.full_name or f'#{c.id}'}'",
+                    affected_entity=f"Customer '{getattr(c, 'name', c.full_name) or f'#{c.id}'}'",
                 ))
     return results
 

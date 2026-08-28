@@ -26,7 +26,8 @@ import ForgotPassword from "./pages/ForgotPassword.jsx"
 function ProtectedRoute({ children, allowedRoles }) {
   const { user } = useAuth()
   if (!user) return <Navigate to="/login" replace />
-  if (allowedRoles && !allowedRoles.includes(user.role)) {
+  const userRole = typeof user.role === 'string' ? user.role : user.role?.role_name;
+  if (allowedRoles && !allowedRoles.includes(userRole)) {
     return <Navigate to="/dashboard" replace />
   }
   return children

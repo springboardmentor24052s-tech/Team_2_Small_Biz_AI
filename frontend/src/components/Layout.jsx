@@ -278,8 +278,9 @@ function ProfileMenu({ user, onLogout }) {
 export default function Layout() {
   const { user, logout } = useAuth()
 
-  const allowedPages = ROLE_PAGES[user?.role] || ROLE_PAGES.business_owner
-  const visibleItems = NAV_ITEMS.filter((item) => allowedPages.includes(item.to))
+  const userRole = typeof user?.role === 'string' ? user?.role : user?.role?.role_name;
+  const allowedPages = ROLE_PAGES[userRole] || ROLE_PAGES.business_owner;
+  const visibleItems = NAV_ITEMS.filter((item) => allowedPages.includes(item.to));
   const today = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric', weekday: 'long' })
 
   const handleLogout = () => {
@@ -317,7 +318,7 @@ export default function Layout() {
             <Avatar user={user} size="sm" />
             <div className="min-w-0">
               <p className="text-sm font-semibold text-white truncate">{user?.full_name}</p>
-              <p className="text-xs text-brand-100/70 dark:text-slate-400">{ROLE_LABELS[user?.role] || user?.role}</p>
+              <p className="text-xs text-brand-100/70 dark:text-slate-400">{ROLE_LABELS[userRole] || userRole}</p>
             </div>
           </div>
           <button

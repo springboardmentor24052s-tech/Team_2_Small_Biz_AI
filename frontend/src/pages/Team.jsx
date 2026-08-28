@@ -136,14 +136,14 @@ export default function Team() {
 
       {showModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden flex flex-col">
-            <div className="px-6 py-4 border-b">
-              <h3 className="text-lg font-bold">Invite Team Member</h3>
+          <div className="bg-white dark:bg-slate-900 border dark:border-slate-800 rounded-xl shadow-xl w-full max-w-md overflow-hidden flex flex-col">
+            <div className="px-6 py-4 border-b dark:border-slate-800">
+              <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">Invite Team Member</h3>
             </div>
             
             <form onSubmit={handleInvite} className="p-6 space-y-4">
               <div>
-                <label className="block text-sm font-medium mb-1">Full Name</label>
+                <label className="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-300">Full Name</label>
                 <input
                   required
                   className="input"
@@ -152,7 +152,7 @@ export default function Team() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1">Email</label>
+                <label className="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-300">Email</label>
                 <input
                   required
                   type="email"
@@ -162,7 +162,7 @@ export default function Team() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1">Password</label>
+                <label className="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-300">Password</label>
                 <input
                   required
                   type="password"
@@ -172,7 +172,7 @@ export default function Team() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1">Role</label>
+                <label className="block text-sm font-medium mb-1 text-slate-700 dark:text-slate-300">Role</label>
                 <select
                   className="input"
                   value={form.role_name}

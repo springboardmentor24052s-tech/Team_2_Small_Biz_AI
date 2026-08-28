@@ -250,8 +250,9 @@ export default function Settings() {
     }
   }
 
-  const userPages = ROLE_PAGES[user?.role] || ROLE_PAGES.business_owner
-const roleColor = ROLE_COLORS[user?.role] || ROLE_COLORS.business_owner
+  const userRole = user?.role?.role_name || user?.role || 'business_owner'
+  const userPages = ROLE_PAGES[userRole] || ROLE_PAGES.business_owner
+  const roleColor = ROLE_COLORS[userRole] || ROLE_COLORS.business_owner
 
   // Profile completion meter
   const completionItems = [
@@ -341,7 +342,7 @@ const roleColor = ROLE_COLORS[user?.role] || ROLE_COLORS.business_owner
         </div>
         <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ${roleColor.bg} ${roleColor.text} border ${roleColor.border}`}>
           <span className={`w-2 h-2 rounded-full ${roleColor.dot}`} />
-          {ROLE_LABELS[user?.role] || user?.role || 'Business Owner'}
+          {ROLE_LABELS[userRole] || userRole || 'Business Owner'}
         </span>
       </div>
 
@@ -600,7 +601,7 @@ const roleColor = ROLE_COLORS[user?.role] || ROLE_COLORS.business_owner
             {/* Role Badge */}
             <div className={`flex items-center gap-2.5 px-3 py-2.5 rounded-lg border ${roleColor.bg} ${roleColor.border}`}>  
               <div className={`w-2.5 h-2.5 rounded-full ${roleColor.dot}`} />
-              <span className={`text-sm font-bold ${roleColor.text}`}>{ROLE_LABELS[user?.role] || 'User'}</span>
+              <span className={`text-sm font-bold ${roleColor.text}`}>{ROLE_LABELS[userRole] || 'User'}</span>
             </div>
             {/* Accessible Pages */}
             <div>
