@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react'
 import api from '../services/api'
-import { Loading, PageHeader, EmptyState, Badge, ErrorBanner } from '../components/ui.jsx'
+import { Loading, PageHeader, Badge, ErrorBanner } from '../components/ui.jsx'
 import InteractiveTable, { DetailModal } from '../components/InteractiveTable.jsx'
 import { Plus, Users, Mail, Phone, IndianRupee, ShoppingCart } from 'lucide-react'
 
@@ -36,15 +36,22 @@ export default function Customers() {
   }
 
   useEffect(() => {
-    if (selected?.id) {
-      setLoadingRecs(true)
-      api.get(`/ai/recommendations/customer/${selected.id}`)
-        .then(res => setRecommendations(res.data.recommendations))
-        .catch(err => console.error("Recs error", err))
-        .finally(() => setLoadingRecs(false))
-    } else {
-      setRecommendations(null)
+    const fetchRecommendations = async () => {
+      if (selected?.id) {
+        setLoadingRecs(true)
+        try {
+          const res = await api.get(`/ai/recommendations/customer/${selected.id}`)
+          setRecommendations(res.data.recommendations)
+        } catch (err) {
+          console.error("Recs error", err)
+        } finally {
+          setLoadingRecs(false)
+        }
+      } else {
+        setRecommendations(null)
+      }
     }
+    fetchRecommendations()
   }, [selected?.id])
 
 
@@ -53,10 +60,7 @@ export default function Customers() {
 
   const getCustomerStats = (cid) => {
     const cSales = sales.filter(s => s.customer_id === cid)
-    const totalSpent = cSales.reduce((sum, s) => {
-      const saleTotal = s.total_amount > 0 ? s.total_amount : (s.sale_items?.reduce((itemSum, item) => itemSum + (item.total || 0), 0) || 0);
-      return sum + saleTotal;
-    }, 0)
+    const totalSpent = cSales.reduce((sum, s) => sum + (s.total_amount || 0), 0)
     return { orderCount: cSales.length, totalSpent }
   }
 
