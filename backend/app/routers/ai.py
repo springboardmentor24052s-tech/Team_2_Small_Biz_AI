@@ -323,7 +323,7 @@ def get_customer_segmentation(
         customer_list.append(
             {
                 "customer_id": stat["customer"].id,
-                "customer_name": stat["customer"].name,
+                "customer_name": stat["customer"].full_name,
                 "segment": segment,
                 "cluster_number": int(labels[i]),
                 "frequency": stat["order_count"],
@@ -390,119 +390,429 @@ def get_churn_predictions(
 # ---------------------------------------------------------------------------
 # 4) Product recommendations — item-based collaborative filtering
 # ---------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
+# 4) Product recommendations — item-based collaborative filtering
+# ---------------------------------------------------------------------------
+
 @router.get("/recommendations")
 @ttl_cache(ttl=120)
 def get_product_recommendations(
-    db: Session = Depends(get_db), current_user=Depends(get_current_user)
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
 ) -> Dict[str, Any]:
+
+    from sqlalchemy.orm import joinedload
+
+    business_id = current_user.business_id
+
+    # -----------------------------------------------------------------------
+    # Load tenant-specific data
+    # -----------------------------------------------------------------------
+
     customers = (
         db.query(models.Customer)
-        .filter(models.Customer.business_id == current_user.business_id)
+        .filter(
+            models.Customer.business_id == business_id
+        )
         .all()
     )
+
     products = (
         db.query(models.Product)
-        .filter(models.Product.business_id == current_user.business_id)
+        .filter(
+            models.Product.business_id == business_id
+        )
         .all()
     )
+
     sales = (
         db.query(models.Sale)
-        .filter(models.Sale.business_id == current_user.business_id)
+        .options(
+            joinedload(models.Sale.sale_items)
+        )
+        .filter(
+            models.Sale.business_id == business_id
+        )
         .all()
     )
+
+    # -----------------------------------------------------------------------
+    # No customers/products
+    # -----------------------------------------------------------------------
+
     if not customers or not products:
-        return {"rows": []}
 
-    # customer -> set of purchased product ids
+        return {
+            "rows": [],
+            "message": "Not enough purchase history to generate recommendations yet.",
+            "total_customers": len(customers),
+            "total_products": len(products),
+            "total_sales": len(sales),
+        }
+
+    # -----------------------------------------------------------------------
+    # Product lookup
+    # -----------------------------------------------------------------------
+
+    name_by_id = {
+        p.id: p.name
+        for p in products
+    }
+
+    # -----------------------------------------------------------------------
+    # Build customer -> purchased products
+    #
+    # IMPORTANT:
+    # Products are taken from SaleItem instead of Sale.product_id.
+    # -----------------------------------------------------------------------
+
     bought = defaultdict(set)
-    for s in sales:
-        if s.product_id and s.customer_id:
-            bought[s.customer_id].add(s.product_id)
 
-    # co-purchase counts across all customers
-    co = defaultdict(int)
-    for prods in bought.values():
-        plist = list(prods)
-        for i in range(len(plist)):
-            for j in range(i + 1, len(plist)):
-                a, b = plist[i], plist[j]
-                co[(a, b)] += 1
+    # Product popularity
+    product_purchase_count = defaultdict(int)
 
-    def co_count(a, b):
-        return co.get((a, b), co.get((b, a), 0))
+    for sale in sales:
 
-    name_by_id = {p.id: p.name for p in products}
-    sell_counts = defaultdict(int)
-    for s in sales:
-        if s.product_id:
-            sell_counts[s.product_id] += 1
-    top_sellers = sorted(products, key=lambda p: sell_counts[p.id], reverse=True)
+        customer_id = sale.customer_id
 
-    rows = []
-    for c in customers:
-        own = bought.get(c.id, set())
-        if not own:
-            recs = [p.name for p in top_sellers[:2]]
-            reason = "Top-selling products across your store — great for first-time engagement."
-        else:
-            scores = {}
-            for p in products:
-                if p.id in own:
-                    continue
-                score = sum(co_count(p.id, b) for b in own)
-                if score > 0:
-                    scores[p.id] = score
-            if scores:
-                ranked = sorted(scores, key=scores.get, reverse=True)[:3]
-                recs = [name_by_id[pid] for pid in ranked]
-                bought_names = [name_by_id[pid] for pid in list(own)[:2]]
-                reason = (
-                    f"Frequently bought together with {', '.join(bought_names)} "
-                    f"by other customers."
-                )
-            else:
-                # No unseen co-purchase candidates — point them at bestsellers.
-                recs = [p.name for p in top_sellers if p.id not in own][:3]
-                if not recs:
-                    recs = [p.name for p in top_sellers[:2]]
-                    reason = "You've bought nearly everything — revisit bestsellers to restock or reorder."
-                else:
-                    reason = "Popular products other similar customers also purchase."
+        if not customer_id:
+            continue
 
-        rows.append(
-            {
-                "customer_id": c.id,
-                "customer_name": c.name,
-                "recommended_products": recs[:3],
-                "reason": reason,
-            }
+        if not sale.sale_items:
+            continue
+
+        for item in sale.sale_items:
+
+            product_id = item.product_id
+
+            if not product_id:
+                continue
+
+            # Only use products belonging to this business
+            if product_id not in name_by_id:
+                continue
+
+            bought[customer_id].add(product_id)
+
+            # Count each purchased line
+            product_purchase_count[product_id] += (
+                int(item.quantity or 1)
+            )
+
+    # -----------------------------------------------------------------------
+    # If there is no usable purchase history
+    # -----------------------------------------------------------------------
+
+    customers_with_history = sum(
+        1
+        for customer in customers
+        if bought.get(customer.id)
+    )
+
+    if customers_with_history == 0:
+
+        return {
+            "rows": [],
+            "message": (
+                "Customers and products exist, but no customer-product "
+                "purchase history is available yet."
+            ),
+            "total_customers": len(customers),
+            "customers_with_history": 0,
+            "total_products": len(products),
+            "total_sales": len(sales),
+        }
+
+    # -----------------------------------------------------------------------
+    # Item-based collaborative filtering
+    #
+    # If customers A and B both purchased products X and Y,
+    # X and Y receive a co-purchase score.
+    # -----------------------------------------------------------------------
+
+    co_purchase = defaultdict(int)
+
+    for purchased_products in bought.values():
+
+        product_list = list(purchased_products)
+
+        for i in range(len(product_list)):
+
+            for j in range(i + 1, len(product_list)):
+
+                product_a = product_list[i]
+                product_b = product_list[j]
+
+                co_purchase[
+                    (product_a, product_b)
+                ] += 1
+
+    # -----------------------------------------------------------------------
+    # Helper for symmetric lookup
+    # -----------------------------------------------------------------------
+
+    def get_co_purchase_count(product_a, product_b):
+
+        return co_purchase.get(
+            (product_a, product_b),
+            co_purchase.get(
+                (product_b, product_a),
+                0
+            )
         )
 
-    # Persist recommendations (pre-dev parity), mapping product names → ids.
+    # -----------------------------------------------------------------------
+    # Popular products
+    # -----------------------------------------------------------------------
+
+    top_products = sorted(
+        products,
+        key=lambda p: product_purchase_count.get(
+            p.id,
+            0
+        ),
+        reverse=True,
+    )
+
+    # -----------------------------------------------------------------------
+    # Generate recommendations for every customer
+    # -----------------------------------------------------------------------
+
+    rows = []
+
+    for customer in customers:
+
+        customer_id = customer.id
+
+        own_products = bought.get(
+            customer_id,
+            set()
+        )
+
+        customer_name = (
+            getattr(customer, "full_name", None)
+            or f"Customer #{customer_id}"
+        )
+
+        # ---------------------------------------------------------------
+        # Customer has never purchased anything
+        # ---------------------------------------------------------------
+
+        if not own_products:
+
+            recommendations = [
+                p.name
+                for p in top_products[:3]
+            ]
+
+            if recommendations:
+
+                reason = (
+                    "Recommended based on the most purchased "
+                    "products in your store."
+                )
+
+            else:
+
+                reason = (
+                    "No purchase history is available yet."
+                )
+
+        # ---------------------------------------------------------------
+        # Customer has purchase history
+        # ---------------------------------------------------------------
+
+        else:
+
+            scores = {}
+
+            for product in products:
+
+                product_id = product.id
+
+                # Don't recommend something the customer already bought
+                if product_id in own_products:
+                    continue
+
+                score = 0
+
+                for bought_product in own_products:
+
+                    score += get_co_purchase_count(
+                        product_id,
+                        bought_product
+                    )
+
+                if score > 0:
+
+                    # Slight popularity bonus
+                    popularity = product_purchase_count.get(
+                        product_id,
+                        0
+                    )
+
+                    scores[product_id] = (
+                        score * 10
+                        + popularity
+                    )
+
+            # -----------------------------------------------------------
+            # Collaborative-filtering recommendations available
+            # -----------------------------------------------------------
+
+            if scores:
+
+                ranked_ids = sorted(
+                    scores,
+                    key=scores.get,
+                    reverse=True
+                )[:3]
+
+                recommendations = [
+                    name_by_id[product_id]
+                    for product_id in ranked_ids
+                ]
+
+                purchased_names = [
+                    name_by_id[pid]
+                    for pid in list(own_products)[:2]
+                    if pid in name_by_id
+                ]
+
+                if purchased_names:
+
+                    reason = (
+                        "Frequently purchased together with "
+                        + ", ".join(purchased_names)
+                        + " by other customers."
+                    )
+
+                else:
+
+                    reason = (
+                        "Recommended from customer purchase patterns."
+                    )
+
+            # -----------------------------------------------------------
+            # No co-purchase relationship
+            # -----------------------------------------------------------
+
+            else:
+
+                recommendations = [
+                    p.name
+                    for p in top_products
+                    if p.id not in own_products
+                ][:3]
+
+                if recommendations:
+
+                    reason = (
+                        "Popular products that this customer "
+                        "has not purchased yet."
+                    )
+
+                else:
+
+                    # Customer already bought everything
+                    recommendations = [
+                        p.name
+                        for p in top_products[:3]
+                    ]
+
+                    reason = (
+                        "Customer has already purchased most available "
+                        "products. These are the store's most popular items."
+                    )
+
+        # -------------------------------------------------------------------
+        # Always create a row when recommendations exist
+        # -------------------------------------------------------------------
+
+        if recommendations:
+
+            rows.append(
+                {
+                    "customer_id": customer_id,
+                    "customer_name": customer_name,
+                    "recommended_products": recommendations[:3],
+                    "reason": reason,
+                    "purchase_history_count": len(
+                        own_products
+                    ),
+                }
+            )
+
+    # -----------------------------------------------------------------------
+    # Persist recommendations
+    # -----------------------------------------------------------------------
+
     try:
-        pid_by_name = {p.name: p.id for p in products}
-        cids = [r["customer_id"] for r in rows]
-        if cids:
-            db.query(models.ProductRecommendation).filter(
-                models.ProductRecommendation.customer_id.in_(cids)
-            ).delete()
-            for r in rows:
-                for name in r["recommended_products"]:
-                    pid = pid_by_name.get(name)
-                    if pid is not None:
-                        db.add(
-                            models.ProductRecommendation(
-                                customer_id=r["customer_id"],
-                                product_id=pid,
-                                recommendation_type="cross_sell",
-                                score=1.0,
-                            )
+
+        customer_ids = [
+            row["customer_id"]
+            for row in rows
+        ]
+
+        if customer_ids:
+
+            db.query(
+                models.ProductRecommendation
+            ).filter(
+                models.ProductRecommendation.customer_id.in_(
+                    customer_ids
+                )
+            ).delete(
+                synchronize_session=False
+            )
+
+            product_id_by_name = {
+                p.name: p.id
+                for p in products
+            }
+
+            for row in rows:
+
+                for product_name in row[
+                    "recommended_products"
+                ]:
+
+                    product_id = product_id_by_name.get(
+                        product_name
+                    )
+
+                    if product_id is None:
+                        continue
+
+                    db.add(
+                        models.ProductRecommendation(
+                            customer_id=row["customer_id"],
+                            product_id=product_id,
+                            recommendation_type="cross_sell",
+                            score=1.0,
                         )
+                    )
+
             db.commit()
+
     except Exception:
         db.rollback()
 
-    return {"rows": rows}
+    # -----------------------------------------------------------------------
+    # Response
+    # -----------------------------------------------------------------------
+
+    return {
+        "rows": rows,
+        "total_customers": len(customers),
+        "customers_with_history": customers_with_history,
+        "total_products": len(products),
+        "total_sales": len(sales),
+        "purchase_events": sum(
+            len(products_set)
+            for products_set in bought.values()
+        ),
+    }
 
 
 # ---------------------------------------------------------------------------

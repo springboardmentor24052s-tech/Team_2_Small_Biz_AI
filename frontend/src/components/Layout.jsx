@@ -4,31 +4,120 @@ import { useAuth } from '../context/AuthContext.jsx'
 import api from '../services/api'
 import ThemeToggle from '../components/ThemeToggle'
 import Avatar from '../components/Avatar'
+
 import {
-  LayoutDashboard, ShoppingCart, Boxes, FileText, Users,
-  UsersRound, Tags, Truck, Database,
-  TrendingUp, PieChart, UserMinus, Sparkles, ShieldAlert, LogOut,
-  Settings, Bell, ChevronDown, CheckCheck, ClipboardList,
+  LayoutDashboard,
+  ShoppingCart,
+  Boxes,
+  FileText,
+  Users,
+  UsersRound,
+  Tags,
+  Truck,
+  Database,
+  TrendingUp,
+  PieChart,
+  UserMinus,
+  Sparkles,
+  ShieldAlert,
+  LogOut,
+  Settings,
+  Bell,
+  ChevronDown,
+  CheckCheck,
+  ClipboardList,
 } from 'lucide-react'
 
+/* =========================================================
+   NAVIGATION ITEMS
+========================================================= */
+
 const NAV_ITEMS = [
-  { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { to: '/sales', label: 'Sales', icon: ShoppingCart },
-  { to: '/inventory', label: 'Inventory', icon: Boxes },
-  { to: '/invoices', label: 'Invoices', icon: FileText },
-  { to: '/customers', label: 'Customers', icon: Users },
-  { to: '/team', label: 'Team', icon: UsersRound },
-  { to: '/categories', label: 'Categories', icon: Tags },
-  { to: '/suppliers', label: 'Suppliers', icon: Truck },
-  { to: '/datasets', label: 'Datasets', icon: Database },
-  { to: '/forecasting', label: 'Forecasting', icon: TrendingUp },
-  { to: '/segmentation', label: 'Segmentation', icon: PieChart },
-  { to: '/churn', label: 'Churn Risk', icon: UserMinus },
-  { to: '/recommendations', label: 'Recommendations', icon: Sparkles },
-  { to: '/anomalies', label: 'Anomaly Alerts', icon: ShieldAlert },
-  { to: '/activity', label: 'Activity Log', icon: ClipboardList },
-  { to: '/settings', label: 'Settings', icon: Settings },
+  {
+    to: '/dashboard',
+    label: 'Dashboard',
+    icon: LayoutDashboard,
+  },
+  {
+    to: '/sales',
+    label: 'Sales',
+    icon: ShoppingCart,
+  },
+  {
+    to: '/inventory',
+    label: 'Inventory',
+    icon: Boxes,
+  },
+  {
+    to: '/invoices',
+    label: 'Invoices',
+    icon: FileText,
+  },
+  {
+    to: '/customers',
+    label: 'Customers',
+    icon: Users,
+  },
+  {
+    to: '/team',
+    label: 'Team',
+    icon: UsersRound,
+  },
+  {
+    to: '/categories',
+    label: 'Categories',
+    icon: Tags,
+  },
+  {
+    to: '/suppliers',
+    label: 'Suppliers',
+    icon: Truck,
+  },
+  {
+    to: '/datasets',
+    label: 'Datasets',
+    icon: Database,
+  },
+  {
+    to: '/forecasting',
+    label: 'Forecasting',
+    icon: TrendingUp,
+  },
+  {
+    to: '/segmentation',
+    label: 'Segmentation',
+    icon: PieChart,
+  },
+  {
+    to: '/churn',
+    label: 'Churn Risk',
+    icon: UserMinus,
+  },
+  {
+    to: '/recommendations',
+    label: 'Recommendations',
+    icon: Sparkles,
+  },
+  {
+    to: '/anomalies',
+    label: 'Anomaly Alerts',
+    icon: ShieldAlert,
+  },
+  {
+    to: '/activity',
+    label: 'Activity Log',
+    icon: ClipboardList,
+  },
+  {
+    to: '/settings',
+    label: 'Settings',
+    icon: Settings,
+  },
 ]
+
+/* =========================================================
+   ROLE DISPLAY LABELS
+========================================================= */
 
 const ROLE_LABELS = {
   business_owner: 'Business Owner',
@@ -37,130 +126,399 @@ const ROLE_LABELS = {
   admin: 'System Administrator',
 }
 
-// Pages visible to each role — if a page is missing from a role's list,
-// it is hidden from the sidebar for that role.
+/* =========================================================
+   ROLE PAGE ACCESS
+========================================================= */
+
 const ROLE_PAGES = {
   business_owner: [
-    '/dashboard', '/sales', '/inventory', '/invoices', '/customers',
-    '/categories', '/suppliers', '/team', '/datasets',
-    '/forecasting', '/segmentation', '/churn', '/recommendations',
-    '/anomalies', '/activity', '/settings',
+    '/dashboard',
+    '/sales',
+    '/inventory',
+    '/invoices',
+    '/customers',
+    '/categories',
+    '/suppliers',
+    '/team',
+    '/datasets',
+    '/forecasting',
+    '/segmentation',
+    '/churn',
+    '/recommendations',
+    '/anomalies',
+    '/activity',
+    '/settings',
   ],
+
   store_manager: [
-    '/dashboard', '/sales', '/inventory', '/invoices', '/customers',
-    '/categories', '/suppliers', '/forecasting', '/segmentation',
-    '/churn', '/recommendations', '/anomalies', '/activity', '/settings',
+    '/dashboard',
+    '/sales',
+    '/inventory',
+    '/invoices',
+    '/customers',
+    '/categories',
+    '/suppliers',
+    '/forecasting',
+    '/segmentation',
+    '/churn',
+    '/recommendations',
+    '/anomalies',
+    '/activity',
+    '/settings',
   ],
+
   sales_executive: [
-    '/dashboard', '/sales', '/inventory', '/invoices', '/customers',
-    '/segmentation', '/recommendations', '/settings',
+    '/dashboard',
+    '/sales',
+    '/inventory',
+    '/invoices',
+    '/customers',
+    '/segmentation',
+    '/recommendations',
+    '/settings',
   ],
+
   admin: [
-    '/dashboard', '/sales', '/inventory', '/invoices', '/customers',
-    '/categories', '/suppliers', '/team', '/datasets',
-    '/forecasting', '/segmentation', '/churn', '/recommendations',
-    '/anomalies', '/activity', '/settings',
+    '/dashboard',
+    '/sales',
+    '/inventory',
+    '/invoices',
+    '/customers',
+    '/categories',
+    '/suppliers',
+    '/team',
+    '/datasets',
+    '/forecasting',
+    '/segmentation',
+    '/churn',
+    '/recommendations',
+    '/anomalies',
+    '/activity',
+    '/settings',
   ],
 }
+
+/* =========================================================
+   NOTIFICATION META
+========================================================= */
 
 const NOTIF_META = {
-  inventory: { icon: Boxes, color: 'text-amber-500 dark:text-amber-400', label: 'Inventory' },
-  anomaly: { icon: ShieldAlert, color: 'text-red-500 dark:text-red-400', label: 'Anomaly' },
-  invoice: { icon: FileText, color: 'text-blue-500 dark:text-blue-400', label: 'Invoice' },
+  inventory: {
+    icon: Boxes,
+    color: 'text-amber-500 dark:text-amber-400',
+    label: 'Inventory',
+  },
+
+  anomaly: {
+    icon: ShieldAlert,
+    color: 'text-red-500 dark:text-red-400',
+    label: 'Anomaly',
+  },
+
+  invoice: {
+    icon: FileText,
+    color: 'text-blue-500 dark:text-blue-400',
+    label: 'Invoice',
+  },
 }
 
-function timeAgo(dateStr) {
-  const diff = Date.now() - new Date(dateStr).getTime()
-  const mins = Math.floor(diff / 60000)
-  if (mins < 1) return 'just now'
-  if (mins < 60) return `${mins}m ago`
-  const hours = Math.floor(mins / 60)
-  if (hours < 24) return `${hours}h ago`
-  const days = Math.floor(hours / 24)
-  if (days < 30) return `${days}d ago`
-  return new Date(dateStr).toLocaleDateString()
+/* =========================================================
+   HELPER: GET ROLE NAME
+========================================================= */
+
+/*
+  Backend can return either:
+
+  role: "business_owner"
+
+  OR:
+
+  role: {
+    id: 1,
+    role_name: "business_owner",
+    description: "..."
+  }
+
+  This function handles both formats.
+*/
+
+function getRoleName(user) {
+  if (!user) {
+    return ''
+  }
+
+  if (typeof user.role === 'string') {
+    return user.role
+  }
+
+  if (user.role && typeof user.role === 'object') {
+    return user.role.role_name || ''
+  }
+
+  if (typeof user.role_name === 'string') {
+    return user.role_name
+  }
+
+  return ''
 }
+
+/* =========================================================
+   HELPER: SAFE DISPLAY VALUE
+========================================================= */
+
+function getDisplayValue(value, fallback = '') {
+  if (value === null || value === undefined) {
+    return fallback
+  }
+
+  if (typeof value === 'string' || typeof value === 'number') {
+    return String(value)
+  }
+
+  if (typeof value === 'object') {
+    if (typeof value.name === 'string') {
+      return value.name
+    }
+
+    if (typeof value.title === 'string') {
+      return value.title
+    }
+
+    if (typeof value.role_name === 'string') {
+      return value.role_name
+    }
+
+    if (typeof value.description === 'string') {
+      return value.description
+    }
+
+    return fallback
+  }
+
+  return fallback
+}
+
+/* =========================================================
+   HELPER: TIME AGO
+========================================================= */
+
+function timeAgo(dateStr) {
+  if (!dateStr) {
+    return ''
+  }
+
+  const date = new Date(dateStr)
+
+  if (Number.isNaN(date.getTime())) {
+    return ''
+  }
+
+  const diff = Date.now() - date.getTime()
+  const mins = Math.floor(diff / 60000)
+
+  if (mins < 1) {
+    return 'just now'
+  }
+
+  if (mins < 60) {
+    return `${mins}m ago`
+  }
+
+  const hours = Math.floor(mins / 60)
+
+  if (hours < 24) {
+    return `${hours}h ago`
+  }
+
+  const days = Math.floor(hours / 24)
+
+  if (days < 30) {
+    return `${days}d ago`
+  }
+
+  return date.toLocaleDateString()
+}
+
+/* =========================================================
+   NOTIFICATION BELL
+========================================================= */
 
 function NotificationBell() {
   const [items, setItems] = useState([])
   const [unread, setUnread] = useState(0)
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
+
   const ref = useRef(null)
   const navigate = useNavigate()
 
+  /* -------------------------------------------------------
+     REFRESH UNREAD COUNT
+  ------------------------------------------------------- */
+
   const refreshCount = useCallback(() => {
-    api.get('/notifications/unread-count')
-      .then((res) => setUnread(res.data.unread_count))
-      .catch(() => {})
+    api
+      .get('/notifications/unread-count')
+      .then((res) => {
+        const count = Number(res.data?.unread_count || 0)
+        setUnread(count)
+      })
+      .catch(() => {
+        // Ignore notification errors.
+      })
   }, [])
+
+  /* -------------------------------------------------------
+     POLL UNREAD COUNT
+  ------------------------------------------------------- */
 
   useEffect(() => {
     refreshCount()
-    const timer = setInterval(refreshCount, 30000)
-    return () => clearInterval(timer)
+
+    const timer = setInterval(() => {
+      refreshCount()
+    }, 30000)
+
+    return () => {
+      clearInterval(timer)
+    }
   }, [refreshCount])
 
+  /* -------------------------------------------------------
+     CLOSE WHEN CLICKING OUTSIDE
+  ------------------------------------------------------- */
+
   useEffect(() => {
-    const handleClick = (e) => {
-      if (ref.current && !ref.current.contains(e.target)) setOpen(false)
+    const handleClick = (event) => {
+      if (ref.current && !ref.current.contains(event.target)) {
+        setOpen(false)
+      }
     }
+
     document.addEventListener('mousedown', handleClick)
-    return () => document.removeEventListener('mousedown', handleClick)
+
+    return () => {
+      document.removeEventListener('mousedown', handleClick)
+    }
   }, [])
+
+  /* -------------------------------------------------------
+     TOGGLE DROPDOWN
+  ------------------------------------------------------- */
 
   const toggleDropdown = async () => {
     if (open) {
       setOpen(false)
       return
     }
+
     setOpen(true)
     setLoading(true)
+
     try {
       const res = await api.get('/notifications')
-      setItems(res.data.items)
-      setUnread(res.data.unread_count)
-    } catch {
+
+      const notificationItems = Array.isArray(res.data?.items)
+        ? res.data.items
+        : []
+
+      setItems(notificationItems)
+      setUnread(Number(res.data?.unread_count || 0))
+    } catch (error) {
+      console.error('Failed to load notifications:', error)
       setItems([])
     } finally {
       setLoading(false)
     }
   }
 
-  const markRead = async (n) => {
+  /* -------------------------------------------------------
+     MARK ONE AS READ
+  ------------------------------------------------------- */
+
+  const markRead = async (notification) => {
     try {
-      await api.post(`/notifications/${n.id}/read`)
-      setItems((prev) => prev.map((x) => (x.id === n.id ? { ...x, read: true } : x)))
-      setUnread((u) => Math.max(0, u - 1))
-    } catch {
-      // ignore mark-read failures (bell state refreshes on next poll)
+      await api.post(`/notifications/${notification.id}/read`)
+
+      setItems((previous) =>
+        previous.map((item) => {
+          if (item.id === notification.id) {
+            return {
+              ...item,
+              read: true,
+            }
+          }
+
+          return item
+        })
+      )
+
+      setUnread((count) => Math.max(0, count - 1))
+    } catch (error) {
+      console.error(
+        'Failed to mark notification as read:',
+        error
+      )
     }
   }
+
+  /* -------------------------------------------------------
+     MARK ALL AS READ
+  ------------------------------------------------------- */
 
   const markAllRead = async () => {
     try {
       await api.post('/notifications/read-all')
-      setItems((prev) => prev.map((x) => ({ ...x, read: true })))
+
+      setItems((previous) =>
+        previous.map((item) => ({
+          ...item,
+          read: true,
+        }))
+      )
+
       setUnread(0)
-    } catch {
-      // ignore read-all failures (bell state refreshes on next poll)
+    } catch (error) {
+      console.error(
+        'Failed to mark notifications as read:',
+        error
+      )
     }
   }
 
-  const handleItemClick = async (n) => {
-    if (!n.read) await markRead(n)
+  /* -------------------------------------------------------
+     HANDLE NOTIFICATION CLICK
+  ------------------------------------------------------- */
+
+  const handleItemClick = async (notification) => {
+    if (!notification.read) {
+      await markRead(notification)
+    }
+
     setOpen(false)
-    if (n.link) navigate(n.link)
+
+    if (notification.link) {
+      navigate(notification.link)
+    }
   }
+
+  /* -------------------------------------------------------
+     RENDER
+  ------------------------------------------------------- */
 
   return (
     <div className="relative" ref={ref}>
       <button
+        type="button"
         onClick={toggleDropdown}
         className="relative p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
         aria-label="Notifications"
       >
-        <Bell size={20} className="text-slate-500 dark:text-slate-400" />
+        <Bell
+          size={20}
+          className="text-slate-500 dark:text-slate-400"
+        />
+
         {unread > 0 && (
           <span className="absolute -top-0.5 -right-0.5 bg-red-500 text-white text-[10px] font-bold rounded-full min-w-4 h-4 px-1 flex items-center justify-center">
             {unread > 9 ? '9+' : unread}
@@ -173,52 +531,98 @@ function NotificationBell() {
           <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 dark:border-slate-800">
             <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">
               Notifications
-              {unread > 0 && <span className="ml-2 text-xs font-bold text-white bg-red-500 rounded-full px-1.5 py-0.5">{unread}</span>}
+
+              {unread > 0 && (
+                <span className="ml-2 text-xs font-bold text-white bg-red-500 rounded-full px-1.5 py-0.5">
+                  {unread}
+                </span>
+              )}
             </p>
+
             {unread > 0 && (
               <button
+                type="button"
                 onClick={markAllRead}
                 className="flex items-center gap-1 text-xs font-medium text-brand-600 dark:text-brand-400 hover:text-brand-700 dark:hover:text-brand-300"
               >
-                <CheckCheck size={14} /> Mark all read
+                <CheckCheck size={14} />
+                Mark all read
               </button>
             )}
           </div>
 
           <div className="overflow-y-auto flex-1">
             {loading ? (
-              <p className="px-4 py-8 text-center text-sm text-slate-400 dark:text-slate-500">Loading...</p>
+              <p className="px-4 py-8 text-center text-sm text-slate-400 dark:text-slate-500">
+                Loading...
+              </p>
             ) : items.length === 0 ? (
               <p className="px-4 py-10 text-center text-sm text-slate-500 dark:text-slate-400">
                 You're all caught up 🎉
               </p>
             ) : (
-              items.map((n) => {
-                const meta = NOTIF_META[n.type] || { icon: Bell, color: 'text-slate-500', label: n.type }
+              items.map((notification) => {
+                const meta = NOTIF_META[notification.type] || {
+                  icon: Bell,
+                  color: 'text-slate-500 dark:text-slate-400',
+                  label: notification.type || 'Notification',
+                }
+
                 const Icon = meta.icon
+
+                const notificationTitle = getDisplayValue(
+                  notification.title,
+                  'Notification'
+                )
+
+                const notificationMessage = getDisplayValue(
+                  notification.message,
+                  ''
+                )
+
                 return (
                   <button
-                    key={n.id}
-                    onClick={() => handleItemClick(n)}
+                    type="button"
+                    key={notification.id}
+                    onClick={() =>
+                      handleItemClick(notification)
+                    }
                     className={`w-full flex items-start gap-3 px-4 py-3 text-left border-b border-slate-100 dark:border-slate-800 transition-colors ${
-                      n.read
+                      notification.read
                         ? 'hover:bg-slate-50 dark:hover:bg-slate-800/50'
                         : 'bg-brand-50/60 dark:bg-brand-950/20 hover:bg-brand-50 dark:hover:bg-brand-950/40'
                     }`}
                   >
-                    <span className={`mt-0.5 shrink-0 ${meta.color}`}>
+                    <span
+                      className={`mt-0.5 shrink-0 ${meta.color}`}
+                    >
                       <Icon size={18} />
                     </span>
+
                     <span className="flex-1 min-w-0">
                       <span className="flex items-center gap-2">
-                        <span className={`text-sm font-semibold ${n.read ? 'text-slate-600 dark:text-slate-300' : 'text-slate-800 dark:text-slate-100'}`}>
-                          {n.title}
+                        <span
+                          className={`text-sm font-semibold ${
+                            notification.read
+                              ? 'text-slate-600 dark:text-slate-300'
+                              : 'text-slate-800 dark:text-slate-100'
+                          }`}
+                        >
+                          {notificationTitle}
                         </span>
-                        {!n.read && <span className="w-2 h-2 rounded-full bg-red-500 shrink-0" />}
+
+                        {!notification.read && (
+                          <span className="w-2 h-2 rounded-full bg-red-500 shrink-0" />
+                        )}
                       </span>
-                      <span className="block text-xs text-slate-500 dark:text-slate-400 mt-0.5 truncate">{n.message}</span>
+
+                      <span className="block text-xs text-slate-500 dark:text-slate-400 mt-0.5 truncate">
+                        {notificationMessage}
+                      </span>
+
                       <span className="block text-[11px] text-slate-400 dark:text-slate-500 mt-1">
-                        {meta.label} · {timeAgo(n.created_at)}
+                        {meta.label} ·{' '}
+                        {timeAgo(notification.created_at)}
                       </span>
                     </span>
                   </button>
@@ -232,42 +636,87 @@ function NotificationBell() {
   )
 }
 
+/* =========================================================
+   PROFILE MENU
+========================================================= */
+
 function ProfileMenu({ user, onLogout }) {
   const [open, setOpen] = useState(false)
+
   const ref = useRef(null)
   const navigate = useNavigate()
 
+  /* -------------------------------------------------------
+     CLOSE WHEN CLICKING OUTSIDE
+  ------------------------------------------------------- */
+
   useEffect(() => {
-    const handleClick = (e) => {
-      if (ref.current && !ref.current.contains(e.target)) setOpen(false)
+    const handleClick = (event) => {
+      if (ref.current && !ref.current.contains(event.target)) {
+        setOpen(false)
+      }
     }
+
     document.addEventListener('mousedown', handleClick)
-    return () => document.removeEventListener('mousedown', handleClick)
+
+    return () => {
+      document.removeEventListener('mousedown', handleClick)
+    }
   }, [])
+
+  const fullName = getDisplayValue(user?.full_name, 'User')
+  const email = getDisplayValue(user?.email, '')
 
   return (
     <div className="relative" ref={ref}>
-      <button onClick={() => setOpen((v) => !v)} className="flex items-center gap-2">
+      <button
+        type="button"
+        onClick={() => setOpen((value) => !value)}
+        className="flex items-center gap-2"
+        aria-label="Open profile menu"
+      >
         <Avatar user={user} size="sm" />
-        <ChevronDown size={16} className="text-slate-400 dark:text-slate-500" />
+
+        <ChevronDown
+          size={16}
+          className="text-slate-400 dark:text-slate-500"
+        />
       </button>
+
       {open && (
         <div className="absolute right-0 mt-2 w-52 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg shadow-lg py-1 z-50">
           <div className="px-4 py-2 border-b border-slate-100 dark:border-slate-800">
-            <p className="text-sm font-medium text-slate-800 dark:text-slate-200">{user?.full_name}</p>
-            <p className="text-xs text-slate-400 dark:text-slate-500">{user?.email}</p>
+            <p className="text-sm font-medium text-slate-800 dark:text-slate-200 truncate">
+              {fullName}
+            </p>
+
+            <p className="text-xs text-slate-400 dark:text-slate-500 truncate">
+              {email}
+            </p>
           </div>
+
           <button
-            onClick={() => { setOpen(false); navigate('/settings') }}
+            type="button"
+            onClick={() => {
+              setOpen(false)
+              navigate('/settings')
+            }}
             className="w-full flex items-center gap-2 px-4 py-2 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
           >
-            <Settings size={16} /> Settings
+            <Settings size={16} />
+            Settings
           </button>
+
           <button
-            onClick={() => { setOpen(false); onLogout() }}
+            type="button"
+            onClick={() => {
+              setOpen(false)
+              onLogout()
+            }}
             className="w-full flex items-center gap-2 px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30"
           >
-            <LogOut size={16} /> Sign out
+            <LogOut size={16} />
+            Sign out
           </button>
         </div>
       )}
@@ -275,70 +724,169 @@ function ProfileMenu({ user, onLogout }) {
   )
 }
 
+/* =========================================================
+   MAIN LAYOUT
+========================================================= */
+
 export default function Layout() {
   const { user, logout } = useAuth()
 
-  const allowedPages = ROLE_PAGES[user?.role] || ROLE_PAGES.business_owner
-  const visibleItems = NAV_ITEMS.filter((item) => allowedPages.includes(item.to))
-  const today = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric', weekday: 'long' })
+  /* -------------------------------------------------------
+     GET SAFE ROLE NAME
+  ------------------------------------------------------- */
+
+  const roleName = getRoleName(user)
+
+  /* -------------------------------------------------------
+     GET ALLOWED PAGES
+  ------------------------------------------------------- */
+
+  const allowedPages =
+    ROLE_PAGES[roleName] || ROLE_PAGES.business_owner
+
+  /* -------------------------------------------------------
+     FILTER SIDEBAR ITEMS
+  ------------------------------------------------------- */
+
+  const visibleItems = NAV_ITEMS.filter((item) =>
+    allowedPages.includes(item.to)
+  )
+
+  /* -------------------------------------------------------
+     CURRENT DATE
+  ------------------------------------------------------- */
+
+  const today = new Date().toLocaleDateString('en-GB', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+    weekday: 'long',
+  })
+
+  /* -------------------------------------------------------
+     DISPLAY ROLE
+  ------------------------------------------------------- */
+
+  const displayRole =
+    ROLE_LABELS[roleName] || roleName || 'User'
+
+  /* -------------------------------------------------------
+     LOGOUT
+  ------------------------------------------------------- */
 
   const handleLogout = () => {
     logout()
   }
 
+  /* -------------------------------------------------------
+     DISPLAY USER NAME
+  ------------------------------------------------------- */
+
+  const fullName = getDisplayValue(user?.full_name, 'User')
+
   return (
     <div className="flex h-screen overflow-hidden bg-slate-50 dark:bg-slate-950 transition-colors duration-300">
-      {/* Sidebar with Dark Mode Theme Support */}
+      {/* =====================================================
+          SIDEBAR
+      ===================================================== */}
+
       <aside className="w-64 bg-brand-900 dark:bg-slate-900 text-white flex flex-col shrink-0 h-screen border-r border-transparent dark:border-slate-800 transition-colors duration-300">
+        {/* BRAND */}
+
         <div className="px-6 py-5 border-b border-white/10 dark:border-slate-800 shrink-0">
-          <h1 className="text-xl font-bold tracking-tight text-white">MarketMind AI</h1>
-          <p className="text-xs text-brand-100/70 dark:text-slate-400 mt-1">Sales Intelligence Platform</p>
+          <h1 className="text-xl font-bold tracking-tight text-white">
+            MarketMind AI
+          </h1>
+
+          <p className="text-xs text-brand-100/70 dark:text-slate-400 mt-1">
+            Sales Intelligence Platform
+          </p>
         </div>
+
+        {/* NAVIGATION */}
+
         <nav className="sidebar-scroll flex-1 overflow-y-auto py-4 px-3 space-y-1">
-          {visibleItems.map(({ to, label, icon: Icon }) => (
-            <NavLink
-              key={to}
-              to={to}
-              className={({ isActive }) =>
-                `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-                  isActive 
-                    ? 'bg-brand-500 dark:bg-indigo-600 text-white shadow-sm' 
-                    : 'text-brand-100/80 dark:text-slate-400 hover:bg-white/10 dark:hover:bg-slate-800/60 hover:text-white dark:hover:text-slate-100'
-                }`
-              }
-            >
-              <Icon size={18} />
-              {label}
-            </NavLink>
-          ))}
+          {visibleItems.map(
+            ({ to, label, icon: Icon }) => (
+              <NavLink
+                key={to}
+                to={to}
+                className={({ isActive }) =>
+                  `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                    isActive
+                      ? 'bg-brand-500 dark:bg-indigo-600 text-white shadow-sm'
+                      : 'text-brand-100/80 dark:text-slate-400 hover:bg-white/10 dark:hover:bg-slate-800/60 hover:text-white dark:hover:text-slate-100'
+                  }`
+                }
+              >
+                <Icon size={18} />
+                <span>{label}</span>
+              </NavLink>
+            )
+          )}
         </nav>
+
+        {/* SIDEBAR USER */}
+
         <div className="px-4 py-4 border-t border-white/10 dark:border-slate-800 shrink-0">
           <div className="flex items-center gap-3">
             <Avatar user={user} size="sm" />
+
             <div className="min-w-0">
-              <p className="text-sm font-semibold text-white truncate">{user?.full_name}</p>
-              <p className="text-xs text-brand-100/70 dark:text-slate-400">{ROLE_LABELS[user?.role] || user?.role}</p>
+              <p className="text-sm font-semibold text-white truncate">
+                {fullName}
+              </p>
+
+              <p className="text-xs text-brand-100/70 dark:text-slate-400 truncate">
+                {displayRole}
+              </p>
             </div>
           </div>
+
           <button
+            type="button"
             onClick={handleLogout}
             className="mt-3 flex items-center gap-2 text-xs text-brand-100/80 dark:text-slate-400 hover:text-white dark:hover:text-slate-200 transition-colors"
           >
-            <LogOut size={14} /> Sign out
+            <LogOut size={14} />
+            Sign out
           </button>
         </div>
       </aside>
 
-      {/* Main Content Area */}
+      {/* =====================================================
+          MAIN CONTENT AREA
+      ===================================================== */}
+
       <div className="flex-1 flex flex-col h-screen overflow-hidden">
+        {/* HEADER */}
+
         <header className="h-16 shrink-0 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 flex items-center justify-end px-6 md:px-8 z-10 transition-colors duration-300">
           <div className="flex items-center gap-4">
-            <span className="text-sm text-slate-500 dark:text-slate-400 hidden sm:block">{today}</span>
+            {/* DATE */}
+
+            <span className="text-sm text-slate-500 dark:text-slate-400 hidden sm:block">
+              {today}
+            </span>
+
+            {/* THEME */}
+
             <ThemeToggle />
+
+            {/* NOTIFICATIONS */}
+
             <NotificationBell />
-            <ProfileMenu user={user} onLogout={handleLogout} />
+
+            {/* PROFILE */}
+
+            <ProfileMenu
+              user={user}
+              onLogout={handleLogout}
+            />
           </div>
         </header>
+
+        {/* PAGE CONTENT */}
 
         <main className="flex-1 overflow-y-auto bg-slate-50 dark:bg-slate-950 transition-colors duration-300">
           <div className="max-w-7xl mx-auto p-6 md:p-8">
