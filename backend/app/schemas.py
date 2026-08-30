@@ -123,10 +123,16 @@ class ProductCreate(BaseModel):
 
 class ProductOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
+
     id: int
     name: str
+
     category_id: Optional[int]
     supplier_id: Optional[int]
+
+    category: Optional[CategoryOut] = None
+    supplier: Optional[SupplierOut] = None
+
     sku: Optional[str]
     barcode: Optional[str]
     purchase_price: float

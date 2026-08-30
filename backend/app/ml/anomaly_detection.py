@@ -474,50 +474,136 @@ def detect_inventory_anomalies(inventory_items: List[Any]) -> List[AnomalyResult
 
 def detect_customer_anomalies(customers: List[Any], sales: List[Any]) -> List[AnomalyResult]:
     results = []
+
     customer_sales = defaultdict(list)
+
     for s in sales:
         if s.customer_id:
             customer_sales[s.customer_id].append(s)
 
     customer_totals = []
+
     for c in customers:
         c_sales = customer_sales.get(c.id, [])
+
         total = sum(float(s.total_amount or 0) for s in c_sales)
         count = len(c_sales)
         avg = total / count if count > 0 else 0
-        customer_totals.append((c, total, count, avg))
 
-    totals = [t[1] for t in customer_totals if t[2] > 0]
+        customer_totals.append(
+            {
+                "customer": c,
+                "total": total,
+                "count": count,
+                "avg": avg,
+            }
+        )
+
+    # ---------------- Z SCORE ----------------
+
+    active_customers = [
+        item for item in customer_totals if item["count"] > 0
+    ]
+
+    totals = [item["total"] for item in active_customers]
+
     if len(totals) >= 3:
-        for idx, z in zscore_detect(totals, 2.0):
-            c, total, count, avg = customer_totals[idx]
-            severity = "high" if z > 3 else "medium"
-            results.append(AnomalyResult(
-                id=c.id, category="customer", severity=severity, anomaly_type="zscore",
-                confidence=min(0.95, 0.7 + abs(z) * 0.05),
-                description=f"Customer '{c.name or c.full_name or f'#{c.id}'}' total spend ₹{total:,.2f} is {abs(z):.1f}σ from average (₹{np.mean(totals):,.2f})",
-                details={"total_spent": total, "orders": count, "z_score": round(z, 2), "avg_customer_spend": round(float(np.mean(totals)), 2)},
-                created_at=dt.datetime.utcnow().isoformat(),
-                suggested_action="Review this customer's purchase pattern.",
-                affected_entity=f"Customer '{c.name or c.full_name or f'#{c.id}'}'",
-            ))
 
-    avgs = [t[3] for t in customer_totals if t[2] > 1]
-    if len(avgs) >= 4:
-        for idx, val in iqr_detect(avgs, 1.5):
-            c, total, count, avg = customer_totals[idx]
-            if not any(r.id == c.id for r in results):
-                arr = np.array(avgs, dtype=float)
-                q1, q3 = np.percentile(arr, 25), np.percentile(arr, 75)
-                results.append(AnomalyResult(
-                    id=c.id, category="customer", severity="medium", anomaly_type="iqr",
-                    confidence=0.7,
-                    description=f"Customer '{c.name or c.full_name or f'#{c.id}'}' avg order ₹{avg:,.2f} outside normal range [₹{q1:,.2f} – ₹{q3:,.2f}]",
-                    details={"avg_order": avg, "orders": count, "q1": round(q1, 2), "q3": round(q3, 2)},
+        for idx, z in zscore_detect(totals, 2.0):
+
+            item = active_customers[idx]
+
+            c = item["customer"]
+            total = item["total"]
+            count = item["count"]
+
+            customer_name = (
+                getattr(c, "full_name", None)
+                or f"#{c.id}"
+            )
+
+            severity = "high" if abs(z) > 3 else "medium"
+
+            results.append(
+                AnomalyResult(
+                    id=c.id,
+                    category="customer",
+                    severity=severity,
+                    anomaly_type="zscore",
+                    confidence=min(0.95, 0.7 + abs(z) * 0.05),
+                    description=(
+                        f"Customer '{customer_name}' total spend "
+                        f"₹{total:,.2f} is {abs(z):.1f}σ "
+                        f"from average (₹{np.mean(totals):,.2f})"
+                    ),
+                    details={
+                        "total_spent": total,
+                        "orders": count,
+                        "z_score": round(z, 2),
+                        "avg_customer_spend": round(float(np.mean(totals)), 2),
+                    },
                     created_at=dt.datetime.utcnow().isoformat(),
-                    suggested_action="Investigate unusual ordering pattern.",
-                    affected_entity=f"Customer '{c.name or c.full_name or f'#{c.id}'}'",
-                ))
+                    suggested_action="Review this customer's purchase pattern.",
+                    affected_entity=f"Customer '{customer_name}'",
+                )
+            )
+
+    # ---------------- IQR ----------------
+
+    avg_customers = [
+        item for item in customer_totals if item["count"] > 1
+    ]
+
+    avgs = [item["avg"] for item in avg_customers]
+
+    if len(avgs) >= 4:
+
+        for idx, val in iqr_detect(avgs, 1.5):
+
+            item = avg_customers[idx]
+
+            c = item["customer"]
+            avg = item["avg"]
+            count = item["count"]
+
+            customer_name = (
+                getattr(c, "full_name", None)
+                or f"#{c.id}"
+            )
+
+            if not any(
+                r.id == c.id and r.category == "customer"
+                for r in results
+            ):
+
+                arr = np.array(avgs, dtype=float)
+
+                q1, q3 = np.percentile(arr, 25), np.percentile(arr, 75)
+
+                results.append(
+                    AnomalyResult(
+                        id=c.id,
+                        category="customer",
+                        severity="medium",
+                        anomaly_type="iqr",
+                        confidence=0.70,
+                        description=(
+                            f"Customer '{customer_name}' avg order "
+                            f"₹{avg:,.2f} outside normal range "
+                            f"[₹{q1:,.2f} – ₹{q3:,.2f}]"
+                        ),
+                        details={
+                            "avg_order": round(avg, 2),
+                            "orders": count,
+                            "q1": round(q1, 2),
+                            "q3": round(q3, 2),
+                        },
+                        created_at=dt.datetime.utcnow().isoformat(),
+                        suggested_action="Investigate unusual ordering pattern.",
+                        affected_entity=f"Customer '{customer_name}'",
+                    )
+                )
+
     return results
 
 
