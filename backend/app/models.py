@@ -1,9 +1,18 @@
+import enum
 import datetime as dt
 from sqlalchemy import (
     Column, Integer, String, Float, DateTime, ForeignKey, Boolean, Text, Date
 )
 from sqlalchemy.orm import relationship
 from .database import Base
+
+
+class RoleEnum(str, enum.Enum):
+    business_owner = "business_owner"
+    store_manager = "store_manager"
+    sales_executive = "sales_executive"
+    admin = "admin"
+
 
 # --- Phase 1: Core Schema ---
 
