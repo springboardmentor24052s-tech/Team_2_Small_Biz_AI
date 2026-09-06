@@ -346,3 +346,88 @@ class AnomalyAlert(Base):
     score = Column(Float, default=0.0)
     created_at = Column(DateTime, default=utcnow)
     related_id = Column(Integer, nullable=True)
+
+
+class AuditLog(Base):
+    __tablename__ = "audit_logs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    business_id = Column(Integer, ForeignKey("businesses.id"), nullable=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    user_name = Column(String, nullable=True)
+    action = Column(String, nullable=False)
+    action_type = Column(String, nullable=True)
+    resource = Column(String, nullable=True)
+    resource_id = Column(Integer, nullable=True)
+    ip_address = Column(String, nullable=True)
+    user_agent = Column(Text, nullable=True)
+    device = Column(String, nullable=True)
+    location = Column(String, nullable=True)
+    latitude = Column(Float, nullable=True)
+    longitude = Column(Float, nullable=True)
+    is_suspicious = Column(Boolean, default=False)
+    suspicion_reason = Column(Text, nullable=True)
+    details = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=utcnow)
+
+
+class ScheduledReport(Base):
+    __tablename__ = "scheduled_reports"
+
+    id = Column(Integer, primary_key=True, index=True)
+    business_id = Column(Integer, ForeignKey("businesses.id"), nullable=False)
+    report_type = Column(String, nullable=False)
+    frequency = Column(String, default="weekly")
+    format = Column(String, default="pdf")
+    recipients = Column(Text, nullable=True)
+    enabled = Column(Boolean, default=True)
+    last_run = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=utcnow)
+
+
+class DashboardLayout(Base):
+    __tablename__ = "dashboard_layouts"
+
+    id = Column(Integer, primary_key=True, index=True)
+    business_id = Column(Integer, ForeignKey("businesses.id"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    name = Column(String, nullable=False)
+    layout_json = Column(Text, nullable=False)
+    is_active = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=utcnow)
+    updated_at = Column(DateTime, default=utcnow, onupdate=utcnow)
+
+
+class CustomReportTemplate(Base):
+    __tablename__ = "custom_report_templates"
+
+    id = Column(Integer, primary_key=True, index=True)
+    business_id = Column(Integer, ForeignKey("businesses.id"), nullable=False)
+    name = Column(String, nullable=False)
+    description = Column(Text, nullable=True)
+    sections = Column(Text, nullable=False)
+    created_at = Column(DateTime, default=utcnow)
+    updated_at = Column(DateTime, default=utcnow, onupdate=utcnow)
+
+
+class PredictionHistory(Base):
+    __tablename__ = "prediction_history"
+
+    id = Column(Integer, primary_key=True, index=True)
+    business_id = Column(Integer, ForeignKey("businesses.id"), nullable=False)
+    predicted_revenue = Column(Float, nullable=False)
+    actual_revenue = Column(Float, nullable=True)
+    horizon_days = Column(Integer, default=30)
+    created_at = Column(DateTime, default=utcnow)
+
+
+class ChatHistory(Base):
+    __tablename__ = "chat_history"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    business_id = Column(Integer, ForeignKey("businesses.id"), nullable=False)
+    messages_json = Column(Text, nullable=False)
+    created_at = Column(DateTime, default=utcnow)
+    updated_at = Column(DateTime, default=utcnow, onupdate=utcnow)
+
