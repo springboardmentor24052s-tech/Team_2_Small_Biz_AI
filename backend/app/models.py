@@ -14,6 +14,11 @@ class RoleEnum(str, enum.Enum):
     admin = "admin"
 
 
+def utcnow():
+    return dt.datetime.now(dt.timezone.utc)
+
+
+
 # --- Phase 1: Core Schema ---
 
 class Business(Base):
@@ -21,7 +26,7 @@ class Business(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     company_name = Column(String, nullable=False)
-    created_at = Column(DateTime, default=dt.datetime.utcnow)
+    created_at = Column(DateTime, default=utcnow)
 
     users = relationship("User", back_populates="business")
     customers = relationship("Customer", back_populates="business")
@@ -53,8 +58,8 @@ class User(Base):
     profile_image = Column(Text, nullable=True)
     is_active = Column(Boolean, default=True)
     last_login = Column(DateTime, nullable=True)
-    created_at = Column(DateTime, default=dt.datetime.utcnow)
-    updated_at = Column(DateTime, default=dt.datetime.utcnow, onupdate=dt.datetime.utcnow)
+    created_at = Column(DateTime, default=utcnow)
+    updated_at = Column(DateTime, default=utcnow, onupdate=utcnow)
 
     role_id = Column(Integer, ForeignKey("roles.id"), nullable=False)
     business_id = Column(Integer, ForeignKey("businesses.id"), nullable=False)
@@ -85,7 +90,7 @@ class Customer(Base):
     total_orders = Column(Integer, default=0)
     total_spent = Column(Float, default=0.0)
     last_purchase_date = Column(Date, nullable=True)
-    created_at = Column(DateTime, default=dt.datetime.utcnow)
+    created_at = Column(DateTime, default=utcnow)
 
     sales = relationship("Sale", back_populates="customer")
     segments = relationship("CustomerSegment", back_populates="customer")
@@ -136,7 +141,7 @@ class Product(Base):
     description = Column(Text, nullable=True)
     image_url = Column(Text, nullable=True)
     is_active = Column(Boolean, default=True)
-    created_at = Column(DateTime, default=dt.datetime.utcnow)
+    created_at = Column(DateTime, default=utcnow)
 
     category = relationship("Category", back_populates="products")
     supplier = relationship("Supplier", back_populates="products")
@@ -155,7 +160,7 @@ class Inventory(Base):
     quantity_available = Column(Integer, nullable=False, default=0)
     reorder_level = Column(Integer, nullable=False, default=10)
     warehouse_location = Column(String, nullable=True)
-    last_updated = Column(DateTime, default=dt.datetime.utcnow, onupdate=dt.datetime.utcnow)
+    last_updated = Column(DateTime, default=utcnow, onupdate=utcnow)
 
     product = relationship("Product", back_populates="inventory")
 
@@ -169,7 +174,7 @@ class InventoryTransaction(Base):
     transaction_type = Column(String, nullable=False)  # IN, OUT, RETURN, ADJUSTMENT
     quantity = Column(Integer, nullable=False)
     remarks = Column(Text, nullable=True)
-    created_at = Column(DateTime, default=dt.datetime.utcnow)
+    created_at = Column(DateTime, default=utcnow)
 
     user = relationship("User", back_populates="inventory_transactions")
 
@@ -188,7 +193,7 @@ class Sale(Base):
     total_amount = Column(Float, nullable=False, default=0.0)
     payment_status = Column(String, default="completed")
     payment_method = Column(String, nullable=True)
-    sale_date = Column(DateTime, default=dt.datetime.utcnow)
+    sale_date = Column(DateTime, default=utcnow)
 
     customer = relationship("Customer", back_populates="sales")
     user = relationship("User", back_populates="sales")
@@ -222,7 +227,7 @@ class Invoice(Base):
     payment_date = Column(Date, nullable=True)
     invoice_status = Column(String, default="pending")  # pending, paid, overdue
     pdf_url = Column(Text, nullable=True)
-    created_at = Column(DateTime, default=dt.datetime.utcnow)
+    created_at = Column(DateTime, default=utcnow)
 
     sale = relationship("Sale", back_populates="invoice")
 
@@ -235,7 +240,7 @@ class UploadedDataset(Base):
     uploaded_by = Column(Integer, ForeignKey("users.id"), nullable=True)
     file_name = Column(String, nullable=False)
     file_path = Column(Text, nullable=True)
-    upload_date = Column(DateTime, default=dt.datetime.utcnow)
+    upload_date = Column(DateTime, default=utcnow)
     validation_status = Column(String, default="pending")
     total_records = Column(Integer, default=0)
     valid_records = Column(Integer, default=0)
@@ -254,7 +259,7 @@ class Alert(Base):
     description = Column(Text, nullable=True)
     priority = Column(String, default="medium")  # low, medium, high, critical
     is_read = Column(Boolean, default=False)
-    created_at = Column(DateTime, default=dt.datetime.utcnow)
+    created_at = Column(DateTime, default=utcnow)
     
     business = relationship("Business", back_populates="alerts")
 
@@ -268,7 +273,7 @@ class Anomaly(Base):
     severity = Column(String, default="medium")
     confidence = Column(Float, default=0.0)
     description = Column(Text, nullable=True)
-    detected_at = Column(DateTime, default=dt.datetime.utcnow)
+    detected_at = Column(DateTime, default=utcnow)
     resolved = Column(Boolean, default=False)
 
 
@@ -282,7 +287,7 @@ class CustomerSegment(Base):
     segment_name = Column(String, nullable=False)
     cluster_number = Column(Integer, nullable=False)
     confidence = Column(Float, nullable=True)
-    generated_at = Column(DateTime, default=dt.datetime.utcnow)
+    generated_at = Column(DateTime, default=utcnow)
 
     customer = relationship("Customer", back_populates="segments")
 
@@ -298,7 +303,7 @@ class Forecast(Base):
     predicted_revenue = Column(Float, nullable=True)
     model_used = Column(String, nullable=True)
     confidence_score = Column(Float, nullable=True)
-    generated_at = Column(DateTime, default=dt.datetime.utcnow)
+    generated_at = Column(DateTime, default=utcnow)
 
     product = relationship("Product", back_populates="forecasts")
     business = relationship("Business", back_populates="forecasts")
@@ -312,7 +317,7 @@ class ChurnPrediction(Base):
     churn_probability = Column(Float, nullable=False)
     risk_level = Column(String, nullable=False)
     recommendation = Column(Text, nullable=True)
-    generated_at = Column(DateTime, default=dt.datetime.utcnow)
+    generated_at = Column(DateTime, default=utcnow)
 
     customer = relationship("Customer", back_populates="churn_predictions")
 
@@ -325,7 +330,7 @@ class ProductRecommendation(Base):
     product_id = Column(Integer, ForeignKey("products.id"), nullable=False)
     recommendation_type = Column(String, nullable=True)  # cross_sell, upsell
     score = Column(Float, nullable=True)
-    generated_at = Column(DateTime, default=dt.datetime.utcnow)
+    generated_at = Column(DateTime, default=utcnow)
 
     customer = relationship("Customer", back_populates="recommendations")
     product = relationship("Product", back_populates="recommendations")
@@ -339,5 +344,5 @@ class AnomalyAlert(Base):
     description = Column(Text)
     severity = Column(String, default="medium")  # low | medium | high
     score = Column(Float, default=0.0)
-    created_at = Column(DateTime, default=dt.datetime.utcnow)
+    created_at = Column(DateTime, default=utcnow)
     related_id = Column(Integer, nullable=True)
