@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../context/AuthContext.jsx'
+import { API_BASE_URL } from '../services/api'
 
 import {
   Bell, BellOff, AlertTriangle, ShoppingCart, TrendingDown,
@@ -203,9 +204,15 @@ function useLiveAlerts(prefs) {
 
     const connectWs = () => {
       try {
-        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-        const wsHost = window.location.port === '5173' ? `${window.location.hostname}:8000` : window.location.host
-        const wsUrl = `${protocol}//${wsHost}/ws/alerts/${businessId}`
+        let wsUrl
+        if (API_BASE_URL && API_BASE_URL.startsWith('http')) {
+          const wsBase = API_BASE_URL.replace(/^http/, 'ws').replace(/\/api\/?$/, '')
+          wsUrl = `${wsBase}/ws/alerts/${businessId}`
+        } else {
+          const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+          const wsHost = window.location.port === '5173' ? `${window.location.hostname}:8000` : window.location.host
+          wsUrl = `${protocol}//${wsHost}/ws/alerts/${businessId}`
+        }
         const ws = new WebSocket(wsUrl)
         wsRef.current = ws
 
