@@ -73,9 +73,18 @@ async def record_request_latency(request, call_next):
     return response
 
 # Enable CORS for frontend integration
+cors_origins_raw = os.getenv(
+    "CORS_ORIGINS",
+    "http://localhost:5173,http://localhost:5174,http://127.0.0.1:5173,http://127.0.0.1:5174,https://marketmind-ai-seven.vercel.app",
+)
+cors_origins = [origin.strip() for origin in cors_origins_raw.split(",") if origin.strip()]
+if "https://marketmind-ai-seven.vercel.app" not in cors_origins:
+    cors_origins.append("https://marketmind-ai-seven.vercel.app")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=os.getenv("CORS_ORIGINS", "http://localhost:5173,http://localhost:5174,https://marketmind-ai-seven.vercel.app").split(","),
+    allow_origins=cors_origins,
+    allow_origin_regex=r"^https:\/\/marketmind-ai.*\.vercel\.app$",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -213,6 +222,7 @@ def root():
 
 
 @app.get("/health")
+@app.get("/api/health")
 def health():
     return {"status": "healthy"}
 

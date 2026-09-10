@@ -1,19 +1,19 @@
 import { useState, useEffect } from 'react'
-import api from '../services/api'
+import { checkHealth } from '../services/api'
 
 export default function SplashScreen({ children }) {
   const [ready, setReady] = useState(false)
 
   useEffect(() => {
     // Quick health check — if backend is cold, this wakes it up
-    api.get('/health', { timeout: 30000 })
+    checkHealth({ timeout: 30000 })
       .then(() => {
         setReady(true)
       })
       .catch(() => {
         // Backend might still be waking up — wait and retry once
         setTimeout(() => {
-          api.get('/health', { timeout: 30000 })
+          checkHealth({ timeout: 30000 })
             .then(() => { setReady(true) })
             .catch(() => { setReady(true) })
         }, 3000)

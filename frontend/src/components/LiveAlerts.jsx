@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../context/AuthContext.jsx'
-import { API_BASE_URL } from '../services/api'
+import { API_BASE_URL, BACKEND_URL } from '../services/api'
 
 import {
   Bell, BellOff, AlertTriangle, ShoppingCart, TrendingDown,
@@ -205,7 +205,10 @@ function useLiveAlerts(prefs) {
     const connectWs = () => {
       try {
         let wsUrl
-        if (API_BASE_URL && API_BASE_URL.startsWith('http')) {
+        if (BACKEND_URL && BACKEND_URL.startsWith('http')) {
+          const wsBase = BACKEND_URL.replace(/^http/, 'ws')
+          wsUrl = `${wsBase}/ws/alerts/${businessId}`
+        } else if (API_BASE_URL && API_BASE_URL.startsWith('http')) {
           const wsBase = API_BASE_URL.replace(/^http/, 'ws').replace(/\/api\/?$/, '')
           wsUrl = `${wsBase}/ws/alerts/${businessId}`
         } else {
