@@ -1,11 +1,20 @@
 import axios from "axios";
 
-export const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000/api";
+// Normalize the backend origin from environment or default local server
+const rawBase =
+  (import.meta.env.VITE_API_BASE_URL ||
+    import.meta.env.VITE_API_URL ||
+    "http://127.0.0.1:8000/api")
+    .trim();
 
-// Origin that serves user-uploaded files (/uploads/...) — derived from the
-// API base so it stays correct when VITE_API_BASE_URL is overridden.
-export const STATIC_BASE_URL = API_BASE_URL.replace(/\/api\/?$/, "");
+// Server root origin without trailing /api or trailing slash (e.g. "https://marketmindai-12ha.onrender.com")
+export const BACKEND_URL = rawBase.replace(/\/api\/?$/, "").replace(/\/+$/, "");
+
+// API base URL for all router endpoints (e.g. "https://marketmindai-12ha.onrender.com/api")
+export const API_BASE_URL = `${BACKEND_URL}/api`;
+
+// Origin that serves user-uploaded files (/uploads/...) — points to root server origin
+export const STATIC_BASE_URL = BACKEND_URL;
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -16,6 +25,12 @@ const api = axios.create({
 
 api.interceptors.request.use(
   (config) => {
+    // If request is for health check, ensure it hits root /health on BACKEND_URL
+    if (config.url === "/health" || config.url === "health" || config.url === "/api/health") {
+      config.baseURL = BACKEND_URL;
+      config.url = "/health";
+    }
+
     const token =
       localStorage.getItem("marketmind_token") ||
       sessionStorage.getItem("marketmind_token");
@@ -160,5 +175,9 @@ export const getSegmentation = () => api.get("/ai/segmentation");
 export const getChurnRisk = () => api.get("/ai/churn-risk");
 export const getRecommendations = () => api.get("/ai/recommendations");
 export const getAnomalies = () => api.get("/ai/anomalies");
+
+// --- Health Check ---
+export const checkHealth = (options = {}) =>
+  axios.get(`${BACKEND_URL}/health`, { timeout: 30000, ...options });
 
 export default api;
