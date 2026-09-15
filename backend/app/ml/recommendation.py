@@ -145,7 +145,7 @@ def build_product_catalog(db):
 
 
 def build_inventory_map(db):
-    from .. import models
+    from .. import models 
 
     rows = db.query(models.Inventory.product_id, models.Inventory.quantity_available).all()
     inventory = defaultdict(int)

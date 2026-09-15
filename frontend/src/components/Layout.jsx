@@ -151,6 +151,7 @@ export default function Layout() {
           <p className="text-xs text-brand-100/70 dark:text-slate-400 mt-1">Sales Intelligence Platform</p>
         </div>
         <nav className="flex-1 overflow-y-auto px-4 py-6 space-y-1">
+        {/* <nav className="sidebar-scrollbar flex-1 overflow-y-auto px-4 py-6 space-y-1"> */}
           {NAV_ITEMS.filter(item => !item.roles || item.roles.includes(user?.role?.role_name || user?.role)).map(({ to, label, icon: Icon }) => (
             <NavLink
               key={to}
