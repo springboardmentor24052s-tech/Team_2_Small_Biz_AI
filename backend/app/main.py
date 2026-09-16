@@ -1,0 +1,238 @@
+import os
+import threading
+import time
+from dotenv import load_dotenv
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
+from fastapi.staticfiles import StaticFiles
+from sqlalchemy import text
+
+# Load environment variables from .env file before anything else runs
+load_dotenv()
+
+from .database import Base, DATABASE_URL, engine, SessionLocal
+from .migrate import ensure_business_id_columns
+from .seed_data import seed_if_empty
+from . import models
+
+# Directory that serves user uploads (profile photos, etc.)
+UPLOAD_DIR = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+    "uploads",
+)
+os.makedirs(UPLOAD_DIR, exist_ok=True)
+from .routers import (
+    auth,
+    customers,
+    inventory,
+    sales,
+    invoices,
+    analytics,
+    ai,
+    categories,
+    suppliers,
+    datasets,
+    users,
+    notifications,
+    forecasting,
+    revenue,
+)
+from .routers.websocket_alerts import router as ws_router
+from .routers.audit import router as audit_router
+from .routers.user_data import router as user_data_router
+from .routers.activity import router as activity_router
+from .routers.system import router as system_router
+
+# Initialize database tables
+Base.metadata.create_all(bind=engine)
+
+# Lightweight migration: add business_id columns + backfill on pre-existing SQLite DBs
+ensure_business_id_columns(engine)
+
+app = FastAPI(
+    title="MarketMind AI",
+    description="Small Business Sales Intelligence Platform - API",
+    version="1.0.0",
+)
+
+# Compress JSON responses (the big list payloads: sales, customers, KPIs...)
+app.add_middleware(GZipMiddleware, minimum_size=1000)
+
+
+# ── request latency telemetry for the system stats endpoint ──
+@app.middleware("http")
+async def record_request_latency(request, call_next):
+    import time as _t
+
+    from .routers.system import record_request
+
+    t0 = _t.perf_counter()
+    response = await call_next(request)
+    record_request(request.url.path, (_t.perf_counter() - t0) * 1000.0)
+    return response
+
+# Enable CORS for frontend integration
+cors_origins_raw = os.getenv(
+    "CORS_ORIGINS",
+    "http://localhost:5173,http://localhost:5174,http://127.0.0.1:5173,http://127.0.0.1:5174,https://marketmind-ai-seven.vercel.app",
+)
+cors_origins = [origin.strip() for origin in cors_origins_raw.split(",") if origin.strip()]
+if "https://marketmind-ai-seven.vercel.app" not in cors_origins:
+    cors_origins.append("https://marketmind-ai-seven.vercel.app")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=cors_origins,
+    allow_origin_regex=r"^https:\/\/marketmind-ai.*\.vercel\.app$",
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Neon PostgreSQL: pre-warm connection pool and keep the serverless
+# compute alive with periodic pings so connections don't go cold.
+def _ping() -> None:
+    with engine.connect() as conn:
+        conn.execute(text("SELECT 1"))
+
+def _keepalive() -> None:
+    while True:
+        time.sleep(120)
+        try:
+            _ping()
+        except Exception as exc:
+            import logging
+            logging.warning(f"Keepalive ping failed: {exc}")
+
+try:
+    _ping()
+    _ping()
+except Exception as exc:
+    import logging
+    logging.warning(f"Initial Neon keepalive ping failed: {exc}")
+threading.Thread(target=_keepalive, daemon=True).start()
+
+# Serve uploaded files (avatars) — must be mounted before routers that
+# define /api routes; StaticFiles only matches paths under /uploads.
+app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
+
+# Note: Routers already include their /api/ path prefix internally.
+# Including them directly prevents path doubling (e.g., /api/api/customers).
+app.include_router(auth.router)
+app.include_router(customers.router)
+app.include_router(inventory.router)
+app.include_router(sales.router)
+app.include_router(invoices.router)
+app.include_router(analytics.router)
+app.include_router(ai.router)
+app.include_router(categories.router)
+app.include_router(suppliers.router)
+app.include_router(datasets.router)
+app.include_router(users.router)
+app.include_router(notifications.router)
+app.include_router(forecasting.router)
+app.include_router(revenue.router)
+app.include_router(ws_router)
+app.include_router(audit_router)
+app.include_router(user_data_router)
+app.include_router(activity_router)
+app.include_router(system_router)
+
+
+@app.on_event("startup")
+def startup_seed():
+    """Runs on backend server start to seed database if empty.
+
+    Runs on a background thread: seeding touches every business (idempotent
+    demo-data + activity-log backfill) and each one costs several Neon
+    round-trips, so doing it inline would block the API for minutes after
+    every --reload restart. The cache warm-up already follows this pattern.
+    """
+    def _seed():
+        db = SessionLocal()
+        try:
+            seed_if_empty(db)
+        except Exception as exc:
+            import logging
+            logging.warning(f"Startup seed failed: {exc}")
+        finally:
+            db.close()
+
+    threading.Thread(target=_seed, daemon=True).start()
+    _start_cache_warmup()
+
+
+def _start_cache_warmup() -> None:
+    """Pre-compute per-business KPIs + AI results on a background thread.
+
+    Every Neon round-trip costs ~1s, so the first request after a restart used
+    to pay that for EACH endpoint (KPIs, forecast, segmentation, ...). Warming
+    the shared TTL caches here means real users hit warm caches immediately.
+    Never blocks startup; failures are swallowed per business.
+    """
+    from types import SimpleNamespace
+
+    from .cache import get_or_set
+    from .routers import ai, analytics, notifications as notif_router
+
+    def _warm() -> None:
+        db = SessionLocal()
+        try:
+            bids = [r[0] for r in db.query(models.Business.id).all()]
+        finally:
+            db.close()
+
+        for bid in bids:
+            try:
+                wdb = SessionLocal()
+                try:
+                    fake = SimpleNamespace(business_id=bid)
+                    get_or_set(
+                        f"analytics:{bid}:kpis",
+                        300,
+                        lambda: analytics._compute_kpis(wdb, bid),
+                    )
+                    ai.get_sales_forecast(horizon_days=14, db=wdb, current_user=fake)
+                    ai.get_sales_forecast(horizon_days=30, db=wdb, current_user=fake)
+                    ai.get_customer_segmentation(db=wdb, current_user=fake)
+                    ai.get_churn_predictions(db=wdb, current_user=fake)
+                    ai.get_all_recommendations(db=wdb, current_user=fake)
+                    # min_confidence must match what FastAPI passes for the
+                    # default so the warm cache key equals the request key.
+                    ai.get_anomaly_alerts(min_confidence=0.0, db=wdb, current_user=fake)
+                    ai.get_customer_lifetime_value(db=wdb, current_user=fake)
+                    notif_router._sync_notifications(wdb, bid)
+                    notif_router.unread_count(db=wdb, current_user=fake)
+                finally:
+                    wdb.close()
+            except Exception as exc:
+                import logging
+                logging.warning(f"Warm-up background task failed: {exc}")
+
+    threading.Thread(target=_warm, daemon=True).start()
+
+
+@app.get("/")
+def root():
+    return {
+        "status": "ok",
+        "message": "MarketMind AI API is running. Visit /docs for interactive API documentation.",
+    }
+
+
+@app.get("/health")
+@app.get("/api/health")
+def health():
+    return {"status": "healthy"}
+
+
+@app.on_event("shutdown")
+def shutdown_event():
+    """Gracefully dispose Neon connection pool on shutdown."""
+    engine.dispose()
+
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=True)
