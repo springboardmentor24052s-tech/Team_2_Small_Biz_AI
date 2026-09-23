@@ -431,6 +431,22 @@ Full interactive API documentation at `http://localhost:8000/docs`
 
 ---
 
+## Contributors
+
+Thanks to everyone who contributed to MarketMind AI:
+
+| Contributor | Role |
+| --- | --- |
+| [@Damini2006](https://github.com/Damini2006) (Neelam Rishika Damini) | Full-stack development, AI/ML features, audit & security |
+| [@pramodhpillitla](https://github.com/pramodhpillitla) | ML pipelines, deployment, DevOps |
+| [@susanna995](https://github.com/susanna995) | Recommendation system, project documentation |
+| [@PallaviDR-17](https://github.com/PallaviDR-17) | Churn prediction module |
+| [@springboardmentor24052s-tech](https://github.com/springboardmentor24052s-tech) | Repository setup & mentorship |
+
+Want to contribute? See [Contributing](#contributing) above.
+
+---
+
 ## License
 
 This project is for educational purposes as part of the Infosys Springboard program.
